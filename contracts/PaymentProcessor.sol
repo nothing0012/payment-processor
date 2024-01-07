@@ -21,9 +21,9 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 /**
  * @title  PaymentProcessor
  * @author Limit Break, Inc.
- * @notice The world's first ERC721-C compatible marketplace contract!  
- * @notice Use ERC721-C to whitelist this contract or other marketplace contracts that process royalties entirely 
- *         on-chain manner to make them 100% enforceable and fully programmable! 
+ * @notice The world's first ERC721-C compatible marketplace contract!
+ * @notice Use ERC721-C to whitelist this contract or other marketplace contracts that process royalties entirely
+ *         on-chain manner to make them 100% enforceable and fully programmable!
  *
  * @notice <h4>Features</h4>
  *
@@ -80,8 +80,13 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
  *         multiple tokens and it is highly advisable to use Flashbots whenever possible.  [Read the
  *         quickstart guide for more information](https://docs.flashbots.net/flashbots-protect/rpc/quick-start).
  */
-contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcessor {
-
+contract PaymentProcessor is
+    ERC165,
+    EIP712,
+    Ownable,
+    Pausable,
+    IPaymentProcessor
+{
     error PaymentProcessor__AddressCannotBeZero();
     error PaymentProcessor__AmountForERC721SalesMustEqualOne();
     error PaymentProcessor__AmountForERC1155SalesGreaterThanZero();
@@ -141,19 +146,24 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
     uint256 public constant FEE_DENOMINATOR = 10_000;
 
     /// @notice keccack256("OfferApproval(uint8 protocol,address marketplace,uint256 marketplaceFeeNumerator,address delegatedPurchaser,address buyer,address tokenAddress,uint256 tokenId,uint256 amount,uint256 price,uint256 expiration,uint256 nonce,uint256 masterNonce,address coin)")
-    bytes32 public constant OFFER_APPROVAL_HASH = 0x2008a1ab898fdaa2d8f178bc39e807035d2d6e330dac5e42e913ca727ab56038;
+    bytes32 public constant OFFER_APPROVAL_HASH =
+        0x2008a1ab898fdaa2d8f178bc39e807035d2d6e330dac5e42e913ca727ab56038;
 
     /// @notice keccack256("CollectionOfferApproval(uint8 protocol,bool collectionLevelOffer,address marketplace,uint256 marketplaceFeeNumerator,address delegatedPurchaser,address buyer,address tokenAddress,uint256 amount,uint256 price,uint256 expiration,uint256 nonce,uint256 masterNonce,address coin)")
-    bytes32 public constant COLLECTION_OFFER_APPROVAL_HASH = 0x0bc3075778b80a2341ce445063e81924b88d61eb5f21c815e8f9cc824af096d0;
+    bytes32 public constant COLLECTION_OFFER_APPROVAL_HASH =
+        0x0bc3075778b80a2341ce445063e81924b88d61eb5f21c815e8f9cc824af096d0;
 
     /// @notice keccack256("BundledOfferApproval(uint8 protocol,address marketplace,uint256 marketplaceFeeNumerator,address delegatedPurchaser,address buyer,address tokenAddress,uint256 price,uint256 expiration,uint256 nonce,uint256 masterNonce,address coin,uint256[] tokenIds,uint256[] amounts,uint256[] itemSalePrices)")
-    bytes32 public constant BUNDLED_OFFER_APPROVAL_HASH = 0x126520d0bca0cfa7e5852d004cc4335723ce67c638cbd55cd530fe992a089e7b;
+    bytes32 public constant BUNDLED_OFFER_APPROVAL_HASH =
+        0x126520d0bca0cfa7e5852d004cc4335723ce67c638cbd55cd530fe992a089e7b;
 
     /// @notice keccack256("SaleApproval(uint8 protocol,bool sellerAcceptedOffer,address marketplace,uint256 marketplaceFeeNumerator,uint256 maxRoyaltyFeeNumerator,address privateBuyer,address seller,address tokenAddress,uint256 tokenId,uint256 amount,uint256 minPrice,uint256 expiration,uint256 nonce,uint256 masterNonce,address coin)")
-    bytes32 public constant SALE_APPROVAL_HASH = 0xd3f4273db8ff5262b6bc5f6ee07d139463b4f826cce90c05165f63062f3686dc;
+    bytes32 public constant SALE_APPROVAL_HASH =
+        0xd3f4273db8ff5262b6bc5f6ee07d139463b4f826cce90c05165f63062f3686dc;
 
     /// @notice keccack256("BundledSaleApproval(uint8 protocol,address marketplace,uint256 marketplaceFeeNumerator,address privateBuyer,address seller,address tokenAddress,uint256 expiration,uint256 nonce,uint256 masterNonce,address coin,uint256[] tokenIds,uint256[] amounts,uint256[] maxRoyaltyFeeNumerators,uint256[] itemPrices)")
-    bytes32 public constant BUNDLED_SALE_APPROVAL_HASH = 0x80244acca7a02d7199149a3038653fc8cb10ca984341ec429a626fab631e1662;
+    bytes32 public constant BUNDLED_SALE_APPROVAL_HASH =
+        0x80244acca7a02d7199149a3038653fc8cb10ca984341ec429a626fab631e1662;
 
     /// @dev Tracks the most recently created security profile id
     uint256 private lastSecurityPolicyId;
@@ -197,7 +207,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @dev ```slot = nonce / 256;```
      * @dev ```offset = nonce % 256;```
      */
-    mapping(bytes32 => mapping(uint256 => uint256)) private invalidatedSignatures;
+    mapping(bytes32 => mapping(uint256 => uint256))
+        private invalidatedSignatures;
 
     /**
      * @dev Mapping of token contract addresses to the address of the ERC-20 payment coin tokens are priced in.
@@ -206,23 +217,24 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @dev If the designated ERC-20 payment coin is not in the list of approved coins, sales cannot be executed
      *      until the designated coin is set to an approved payment coin.
      */
-    mapping (address => address) public collectionPaymentCoins;
+    mapping(address => address) public collectionPaymentCoins;
 
     /**
      * @dev Mapping of token contract addresses to the collection-level pricing boundaries (floor and ceiling price).
      */
-    mapping (address => PricingBounds) private collectionPricingBounds;
+    mapping(address => PricingBounds) private collectionPricingBounds;
 
     /**
      * @dev Mapping of token contract addresses to the token-level pricing boundaries (floor and ceiling price).
      */
-    mapping (address => mapping (uint256 => PricingBounds)) private tokenPricingBounds;
+    mapping(address => mapping(uint256 => PricingBounds))
+        private tokenPricingBounds;
 
     constructor(
         address defaultContractOwner_,
-        uint32 defaultPushPaymentGasLimit_, 
-        address[] memory defaultPaymentMethods) EIP712("PaymentProcessor", "1") {
-
+        uint32 defaultPushPaymentGasLimit_,
+        address[] memory defaultPaymentMethods
+    ) EIP712("PaymentProcessor", "1") {
         securityPolicies[DEFAULT_SECURITY_POLICY_ID] = SecurityPolicy({
             enforceExchangeWhitelist: false,
             enforcePaymentMethodWhitelist: true,
@@ -236,7 +248,7 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         });
 
         emit CreatedOrUpdatedSecurityPolicy(
-            DEFAULT_SECURITY_POLICY_ID, 
+            DEFAULT_SECURITY_POLICY_ID,
             false,
             true,
             false,
@@ -245,13 +257,17 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             false,
             false,
             defaultPushPaymentGasLimit_,
-            "DEFAULT SECURITY POLICY");
+            "DEFAULT SECURITY POLICY"
+        );
 
-        for (uint256 i = 0; i < defaultPaymentMethods.length;) {
+        for (uint256 i = 0; i < defaultPaymentMethods.length; ) {
             address coin = defaultPaymentMethods[i];
 
             paymentMethodWhitelist[DEFAULT_SECURITY_POLICY_ID][coin] = true;
-            emit PaymentMethodAddedToWhitelist(DEFAULT_SECURITY_POLICY_ID, coin);
+            emit PaymentMethodAddedToWhitelist(
+                DEFAULT_SECURITY_POLICY_ID,
+                coin
+            );
 
             unchecked {
                 ++i;
@@ -304,8 +320,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      *
      * @param  enforceExchangeWhitelist          Requires external exchange contracts be whitelisted to make buy calls.
      * @param  enforcePaymentMethodWhitelist     Requires that ERC-20 payment methods be pre-approved.
-     * @param  enforcePricingConstraints         Allows the creator to specify exactly one approved payment method, 
-     *                                           a minimum floor price and a maximum ceiling price.  
+     * @param  enforcePricingConstraints         Allows the creator to specify exactly one approved payment method,
+     *                                           a minimum floor price and a maximum ceiling price.
      *                                           When true, this value supercedes `enforcePaymentMethodWhitelist`.
      * @param  disablePrivateListings            Prevents private sales.
      * @param  disableDelegatedPurchases         Prevents delegated purchases.
@@ -325,13 +341,14 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         bool disableEIP1271Signatures,
         bool disableExchangeWhitelistEOABypass,
         uint32 pushPaymentGasLimit,
-        string calldata registryName) external override returns (uint256) {
+        string calldata registryName
+    ) external override returns (uint256) {
         uint256 securityPolicyId;
-        
+
         unchecked {
             securityPolicyId = ++lastSecurityPolicyId;
         }
-        
+
         _createOrUpdateSecurityPolicy(
             securityPolicyId,
             enforceExchangeWhitelist,
@@ -350,18 +367,18 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
 
     /**
      * @notice Allows security policy owners to update existing security policies.
-     * 
+     *
      * @dev    Throws when caller is not the owner of the specified security policy.
      * @dev    Throws when the specified security policy id does not exist.
-     * 
+     *
      * @dev    <h4>Postconditions:</h4>
      * @dev    1. The security policy details have been updated in the security policies mapping.
      * @dev    2. A `CreatedOrUpdatedSecurityPolicy` event has been emitted.
      *
      * @param  enforceExchangeWhitelist          Requires external exchange contracts be whitelisted to make buy calls.
      * @param  enforcePaymentMethodWhitelist     Requires that ERC-20 payment methods be pre-approved.
-     * @param  enforcePricingConstraints         Allows the creator to specify exactly one approved payment method, 
-     *                                           a minimum floor price and a maximum ceiling price.  
+     * @param  enforcePricingConstraints         Allows the creator to specify exactly one approved payment method,
+     *                                           a minimum floor price and a maximum ceiling price.
      *                                           When true, this value supercedes `enforcePaymentMethodWhitelist`.
      * @param  disablePrivateListings            Prevents private sales.
      * @param  disableDelegatedPurchases         Prevents delegated purchases.
@@ -382,7 +399,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         bool disableEIP1271Signatures,
         bool disableExchangeWhitelistEOABypass,
         uint32 pushPaymentGasLimit,
-        string calldata registryName) external override {
+        string calldata registryName
+    ) external override {
         _requireCallerOwnsSecurityPolicy(securityPolicyId);
 
         _createOrUpdateSecurityPolicy(
@@ -412,8 +430,11 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  securityPolicyId The id of the security policy to update.
      * @param  newOwner         The new policy owner address.
      */
-    function transferSecurityPolicyOwnership(uint256 securityPolicyId, address newOwner) external override {
-        if(newOwner == address(0)) {
+    function transferSecurityPolicyOwnership(
+        uint256 securityPolicyId,
+        address newOwner
+    ) external override {
+        if (newOwner == address(0)) {
             revert PaymentProcessor__SecurityPolicyOwnershipCannotBeTransferredToZeroAddress();
         }
 
@@ -432,12 +453,14 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      *
      * @param  securityPolicyId The id of the security policy to update.
      */
-    function renounceSecurityPolicyOwnership(uint256 securityPolicyId) external override {
+    function renounceSecurityPolicyOwnership(
+        uint256 securityPolicyId
+    ) external override {
         _transferSecurityPolicyOwnership(securityPolicyId, address(0));
     }
 
     /**
-     * @notice Allows the smart contract, the contract owner, or the contract admin of any NFT collection to 
+     * @notice Allows the smart contract, the contract owner, or the contract admin of any NFT collection to
      *         set the security policy for their collection..
      *
      * @dev    Throws when the specified tokenAddress is address(0).
@@ -450,7 +473,10 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  tokenAddress     The smart contract address of the NFT collection.
      * @param  securityPolicyId The security policy id to use for the collection.
      */
-    function setCollectionSecurityPolicy(address tokenAddress, uint256 securityPolicyId) external override {
+    function setCollectionSecurityPolicy(
+        address tokenAddress,
+        uint256 securityPolicyId
+    ) external override {
         _requireCallerIsNFTOrContractOwnerOrAdmin(tokenAddress);
 
         if (securityPolicyId > lastSecurityPolicyId) {
@@ -462,8 +488,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
     }
 
     /**
-     * @notice Allows the smart contract, the contract owner, or the contract admin of any NFT collection to 
-     *         specify the currency their collection is priced in.  Only applicable when `enforcePricingConstraints` 
+     * @notice Allows the smart contract, the contract owner, or the contract admin of any NFT collection to
+     *         specify the currency their collection is priced in.  Only applicable when `enforcePricingConstraints`
      *         security setting is in effect for a collection.
      *
      * @dev    Throws when the specified tokenAddress is address(0).
@@ -478,21 +504,24 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  coin         The address of the designated ERC-20 payment coin smart contract.
      *                      Specify address(0) to designate native currency as the payment currency.
      */
-    function setCollectionPaymentCoin(address tokenAddress, address coin) external override {
+    function setCollectionPaymentCoin(
+        address tokenAddress,
+        address coin
+    ) external override {
         _requireCallerIsNFTOrContractOwnerOrAdmin(tokenAddress);
         collectionPaymentCoins[tokenAddress] = coin;
         emit UpdatedCollectionPaymentCoin(tokenAddress, coin);
     }
 
     /**
-     * @notice Allows the smart contract, the contract owner, or the contract admin of any NFT collection to 
+     * @notice Allows the smart contract, the contract owner, or the contract admin of any NFT collection to
      *         specify their own bounded price at the collection level.
      *
      * @dev    Throws when the specified tokenAddress is address(0).
      * @dev    Throws when the caller is not the contract, the owner or the administrator of the specified tokenAddress.
      * @dev    Throws when the previously set pricing bounds were set to be immutable.
      * @dev    Throws when the specified floor price is greater than the ceiling price.
-     * 
+     *
      * @dev    <h4>Postconditions:</h4>
      * @dev    1. The collection-level pricing bounds for the specified tokenAddress has been set.
      * @dev    2. An `UpdatedCollectionLevelPricingBoundaries` event has been emitted.
@@ -500,82 +529,89 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  tokenAddress The smart contract address of the NFT collection.
      * @param  pricingBounds Including the floor price, ceiling price, and an immutability flag.
      */
-    function setCollectionPricingBounds(address tokenAddress, PricingBounds calldata pricingBounds) external override {
+    function setCollectionPricingBounds(
+        address tokenAddress,
+        PricingBounds calldata pricingBounds
+    ) external override {
         _requireCallerIsNFTOrContractOwnerOrAdmin(tokenAddress);
 
-        if(collectionPricingBounds[tokenAddress].isImmutable) {
+        if (collectionPricingBounds[tokenAddress].isImmutable) {
             revert PaymentProcessor__PricingBoundsAreImmutable();
         }
 
-        if(pricingBounds.floorPrice > pricingBounds.ceilingPrice) {
+        if (pricingBounds.floorPrice > pricingBounds.ceilingPrice) {
             revert PaymentProcessor__CeilingPriceMustBeGreaterThanFloorPrice();
         }
-        
+
         collectionPricingBounds[tokenAddress] = pricingBounds;
-        
+
         emit UpdatedCollectionLevelPricingBoundaries(
-            tokenAddress, 
-            pricingBounds.floorPrice, 
-            pricingBounds.ceilingPrice);
+            tokenAddress,
+            pricingBounds.floorPrice,
+            pricingBounds.ceilingPrice
+        );
     }
 
     /**
-     * @notice Allows the smart contract, the contract owner, or the contract admin of any NFT collection to 
+     * @notice Allows the smart contract, the contract owner, or the contract admin of any NFT collection to
      *         specify their own bounded price at the individual token level.
      *
      * @dev    Throws when the specified tokenAddress is address(0).
      * @dev    Throws when the caller is not the contract, the owner or the administrator of the specified tokenAddress.
      * @dev    Throws when the lengths of the tokenIds and pricingBounds array don't match.
-     * @dev    Throws when the tokenIds or pricingBounds array length is zero.     
+     * @dev    Throws when the tokenIds or pricingBounds array length is zero.
      * @dev    Throws when the previously set pricing bounds of a token were set to be immutable.
      * @dev    Throws when the any of the specified floor prices is greater than the ceiling price for that token id.
-     * 
+     *
      * @dev    <h4>Postconditions:</h4>
      * @dev    1. The token-level pricing bounds for the specified tokenAddress and token ids has been set.
      * @dev    2. An `UpdatedTokenLevelPricingBoundaries` event has been emitted.
      *
      * @param  tokenAddress  The smart contract address of the NFT collection.
      * @param  tokenIds      An array of token ids for which pricing bounds are being set.
-     * @param  pricingBounds An array of pricing bounds used to set the floor, ceiling and immutability flag on the 
+     * @param  pricingBounds An array of pricing bounds used to set the floor, ceiling and immutability flag on the
      *                       individual token level.
      */
     function setTokenPricingBounds(
-        address tokenAddress, 
-        uint256[] calldata tokenIds, 
-        PricingBounds[] calldata pricingBounds) external override {
+        address tokenAddress,
+        uint256[] calldata tokenIds,
+        PricingBounds[] calldata pricingBounds
+    ) external override {
         _requireCallerIsNFTOrContractOwnerOrAdmin(tokenAddress);
 
-        if(tokenIds.length != pricingBounds.length) {
+        if (tokenIds.length != pricingBounds.length) {
             revert PaymentProcessor__InputArrayLengthMismatch();
         }
 
-        if(tokenIds.length == 0) {
+        if (tokenIds.length == 0) {
             revert PaymentProcessor__InputArrayLengthCannotBeZero();
         }
 
-        mapping (uint256 => PricingBounds) storage ptrTokenPricingBounds = tokenPricingBounds[tokenAddress];
+        mapping(uint256 => PricingBounds)
+            storage ptrTokenPricingBounds = tokenPricingBounds[tokenAddress];
 
         uint256 tokenId;
-        for(uint256 i = 0; i < tokenIds.length;) {
+        for (uint256 i = 0; i < tokenIds.length; ) {
             tokenId = tokenIds[i];
             PricingBounds memory pricingBounds_ = pricingBounds[i];
 
-            if(ptrTokenPricingBounds[tokenId].isImmutable) {
+            if (ptrTokenPricingBounds[tokenId].isImmutable) {
                 revert PaymentProcessor__PricingBoundsAreImmutable();
             }
 
-            if(pricingBounds_.floorPrice > pricingBounds_.ceilingPrice) {
+            if (pricingBounds_.floorPrice > pricingBounds_.ceilingPrice) {
                 revert PaymentProcessor__CeilingPriceMustBeGreaterThanFloorPrice();
             }
 
             ptrTokenPricingBounds[tokenId] = pricingBounds_;
 
             emit UpdatedTokenLevelPricingBoundaries(
-                tokenAddress, 
-                tokenId, 
-                pricingBounds_.floorPrice, 
-                pricingBounds_.ceilingPrice);
-            
+                tokenAddress,
+                tokenId,
+                pricingBounds_.floorPrice,
+                pricingBounds_.ceilingPrice
+            );
+
             unchecked {
                 ++i;
             }
@@ -596,14 +632,18 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  securityPolicyId The id of the security policy to update.
      * @param  account          The address of the exchange to whitelist.
      */
-    function whitelistExchange(uint256 securityPolicyId, address account) external override {
+    function whitelistExchange(
+        uint256 securityPolicyId,
+        address account
+    ) external override {
         _requireCallerOwnsSecurityPolicy(securityPolicyId);
 
         if (account == address(0)) {
             revert PaymentProcessor__AddressCannotBeZero();
         }
 
-        mapping (address => bool) storage ptrExchangeWhitelist = exchangeWhitelist[securityPolicyId];
+        mapping(address => bool)
+            storage ptrExchangeWhitelist = exchangeWhitelist[securityPolicyId];
 
         if (ptrExchangeWhitelist[account]) {
             revert PaymentProcessor__ExchangeIsWhitelisted();
@@ -626,10 +666,14 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  securityPolicyId The id of the security policy to update.
      * @param  account          The address of the exchange to unwhitelist.
      */
-    function unwhitelistExchange(uint256 securityPolicyId, address account) external override {
+    function unwhitelistExchange(
+        uint256 securityPolicyId,
+        address account
+    ) external override {
         _requireCallerOwnsSecurityPolicy(securityPolicyId);
 
-        mapping (address => bool) storage ptrExchangeWhitelist = exchangeWhitelist[securityPolicyId];
+        mapping(address => bool)
+            storage ptrExchangeWhitelist = exchangeWhitelist[securityPolicyId];
 
         if (!ptrExchangeWhitelist[account]) {
             revert PaymentProcessor__ExchangeIsNotWhitelisted();
@@ -644,7 +688,7 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      *
      * @dev    Throws when caller is not the owner of the specified security policy.
      * @dev    Throws when the specified coin address is address(0).
-     * @dev    Throws when the specified coin does not implement the decimals() that returns a non-zero value. 
+     * @dev    Throws when the specified coin does not implement the decimals() that returns a non-zero value.
      * @dev    Throws when the specified coin is already approved under the specified security policy.
      *
      * @dev    <h4>Postconditions:</h4>
@@ -654,10 +698,16 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  securityPolicyId The id of the security policy to update.
      * @param  coin             The address of the coin to approve.
      */
-    function whitelistPaymentMethod(uint256 securityPolicyId, address coin) external override {
+    function whitelistPaymentMethod(
+        uint256 securityPolicyId,
+        address coin
+    ) external override {
         _requireCallerOwnsSecurityPolicy(securityPolicyId);
 
-        mapping (address => bool) storage ptrPaymentMethodWhitelist = paymentMethodWhitelist[securityPolicyId];
+        mapping(address => bool)
+            storage ptrPaymentMethodWhitelist = paymentMethodWhitelist[
+                securityPolicyId
+            ];
 
         if (ptrPaymentMethodWhitelist[coin]) {
             revert PaymentProcessor__CoinIsApproved();
@@ -680,10 +730,16 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  securityPolicyId The id of the security policy to update.
      * @param  coin             The address of the coin to disapprove.
      */
-    function unwhitelistPaymentMethod(uint256 securityPolicyId, address coin) external override {
+    function unwhitelistPaymentMethod(
+        uint256 securityPolicyId,
+        address coin
+    ) external override {
         _requireCallerOwnsSecurityPolicy(securityPolicyId);
 
-        mapping (address => bool) storage ptrPaymentMethodWhitelist = paymentMethodWhitelist[securityPolicyId];
+        mapping(address => bool)
+            storage ptrPaymentMethodWhitelist = paymentMethodWhitelist[
+                securityPolicyId
+            ];
 
         if (!ptrPaymentMethodWhitelist[coin]) {
             revert PaymentProcessor__CoinIsNotApproved();
@@ -724,7 +780,10 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  marketplace The marketplace where the `msg.sender` signed the listing or offer.
      * @param  nonce       The nonce that was signed in the revoked listing or offer.
      */
-    function revokeSingleNonce(address marketplace, uint256 nonce) external override {
+    function revokeSingleNonce(
+        address marketplace,
+        uint256 nonce
+    ) external override {
         _checkAndInvalidateNonce(marketplace, _msgSender(), nonce, true);
     }
 
@@ -754,7 +813,7 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      *         ```
      *
      * @notice The buyer's signature must be provided that proves that they approved the purchase.  There are two
-     *         formats for this approval, one format to be used for collection-level offers when a specific token id is 
+     *         formats for this approval, one format to be used for collection-level offers when a specific token id is
      *         not specified and one format to be used for item-level offers when a specific token id is specified.
      *
      * @notice This an an EIP-712 signature with the following data format.
@@ -813,27 +872,27 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @dev    Throws when a private buyer is specified and the buyer does not match the private buyer.
      * @dev    Throws when a private buyer is specified and private listings are disabled by collection security policy.
      * @dev    Throws when a delegated purchaser is specified and the `msg.sender` is not the delegated purchaser.
-     * @dev    Throws when a delegated purchaser is specified and delegated purchases are disabled by collection 
+     * @dev    Throws when a delegated purchaser is specified and delegated purchases are disabled by collection
      *         security policy.
      * @dev    Throws when the seller or buyer is a smart contract and EIP-1271 signatures are disabled by collection
      *         security policy.
-     * @dev    Throws when the exchange whitelist is enforced by collection security policy and `msg.sender` is a 
+     * @dev    Throws when the exchange whitelist is enforced by collection security policy and `msg.sender` is a
      *         smart contract that is not on the whitelist.
-     * @dev    Throws when the exchange whitelist is enforced AND exchange whitelist EOA bypass is disabled by 
-     *         collection security policy and `msg.sender` is an EOA that is not whitelisted. 
+     * @dev    Throws when the exchange whitelist is enforced AND exchange whitelist EOA bypass is disabled by
+     *         collection security policy and `msg.sender` is an EOA that is not whitelisted.
      * @dev    Throws when the seller's nonce on the specified marketplace has already been used to execute a sale.
      * @dev    Throws when the seller's nonce on the specified marketplace has already been revoked/canceled.
      * @dev    Throws when the buyer's nonce on the specified marketplace has already been used to execute a sale.
      * @dev    Throws when the buyer's nonce on the specified marketplace has already been revoked/canceled.
      * @dev    Throws when the `masterNonce` in the signed listing is not equal to the seller's current `masterNonce.
      * @dev    Throws when the `masterNonce` in the signed offer is not equal to the buyer's current `masterNonce.
-     * @dev    Throws when the seller is an EOA and ECDSA recover operation on the SaleApproval EIP-712 signature 
-     *         does not return the seller's address, meaning the seller did not approve the sale with the provided 
+     * @dev    Throws when the seller is an EOA and ECDSA recover operation on the SaleApproval EIP-712 signature
+     *         does not return the seller's address, meaning the seller did not approve the sale with the provided
      *         sale details.
      * @dev    Throws when the seller is a smart contract and EIP-1271 signature validation returns false for the
      *         supplied listing signature.
-     * @dev    Throws when the buyer is an EOA and ECDSA recover operation on the OfferApproval EIP-712 signature 
-     *         does not return the buyer's address, meaning the buyer did not approve the purchase with the provided 
+     * @dev    Throws when the buyer is an EOA and ECDSA recover operation on the OfferApproval EIP-712 signature
+     *         does not return the buyer's address, meaning the buyer did not approve the purchase with the provided
      *         purchase details.
      * @dev    Throws when the buyer is a smart contract and EIP-1271 signature validation returns false for the
      *         supplied offer signature.
@@ -846,9 +905,9 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @dev    Throws when the distribution of native proceeds cannot be accepted or fails for any reason.
      *
      * @dev    <h4>Postconditions:</h4>
-     * @dev    1. The listing nonce for the specified marketplace and seller has been marked as invalidated so that it 
+     * @dev    1. The listing nonce for the specified marketplace and seller has been marked as invalidated so that it
      *            cannot be replayed/used again.
-     * @dev    2. The offer nonce for the specified marketplace and buyer has been marked as invalidated so that it 
+     * @dev    2. The offer nonce for the specified marketplace and buyer has been marked as invalidated so that it
      *            cannot be replayed/used again.
      * @dev    3. Applicable royalties have been paid to the address designated with EIP-2981 (when implemented on the
      *            NFT contract).
@@ -867,7 +926,14 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         SignatureECDSA memory signedOffer
     ) external payable override {
         _requireNotPaused();
-        if (!_executeMatchedOrderSale(msg.value, saleDetails, signedListing, signedOffer)) {
+        if (
+            !_executeMatchedOrderSale(
+                msg.value,
+                saleDetails,
+                signedListing,
+                signedOffer
+            )
+        ) {
             revert PaymentProcessor__DispensingTokenWasUnsuccessful();
         }
     }
@@ -906,8 +972,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      *         ```
      *
      * @notice The buyer's signature must be provided that proves that they approved the purchase of each item.
-     *         There are two formats for this approval, one format to be used for collection-level offers when a 
-     *         specific token id is not specified and one format to be used for item-level offers when a specific token 
+     *         There are two formats for this approval, one format to be used for collection-level offers when a
+     *         specific token id is not specified and one format to be used for item-level offers when a specific token
      *         id is specified.
      *
      * @notice This an an EIP-712 signature with the following data format.
@@ -974,27 +1040,27 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @dev    Throws when a private buyer is specified and the buyer does not match the private buyer.
      * @dev    Throws when a private buyer is specified and private listings are disabled by collection security policy.
      * @dev    Throws when a delegated purchaser is specified and the `msg.sender` is not the delegated purchaser.
-     * @dev    Throws when a delegated purchaser is specified and delegated purchases are disabled by collection 
+     * @dev    Throws when a delegated purchaser is specified and delegated purchases are disabled by collection
      *         security policy.
      * @dev    Throws when the seller or buyer is a smart contract and EIP-1271 signatures are disabled by collection
      *         security policy.
-     * @dev    Throws when the exchange whitelist is enforced by collection security policy and `msg.sender` is a 
+     * @dev    Throws when the exchange whitelist is enforced by collection security policy and `msg.sender` is a
      *         smart contract that is not on the whitelist.
-     * @dev    Throws when the exchange whitelist is enforced AND exchange whitelist EOA bypass is disabled by 
-     *         collection security policy and `msg.sender` is an EOA that is not whitelisted. 
+     * @dev    Throws when the exchange whitelist is enforced AND exchange whitelist EOA bypass is disabled by
+     *         collection security policy and `msg.sender` is an EOA that is not whitelisted.
      * @dev    Throws when the seller's nonce on the specified marketplace has already been used to execute a sale.
      * @dev    Throws when the seller's nonce on the specified marketplace has already been revoked/canceled.
      * @dev    Throws when the buyer's nonce on the specified marketplace has already been used to execute a sale.
      * @dev    Throws when the buyer's nonce on the specified marketplace has already been revoked/canceled.
      * @dev    Throws when the `masterNonce` in the signed listing is not equal to the seller's current `masterNonce.
      * @dev    Throws when the `masterNonce` in the signed offer is not equal to the buyer's current `masterNonce.
-     * @dev    Throws when the seller is an EOA and ECDSA recover operation on the SaleApproval EIP-712 signature 
-     *         does not return the seller's address, meaning the seller did not approve the sale with the provided 
+     * @dev    Throws when the seller is an EOA and ECDSA recover operation on the SaleApproval EIP-712 signature
+     *         does not return the seller's address, meaning the seller did not approve the sale with the provided
      *         sale details.
      * @dev    Throws when the seller is a smart contract and EIP-1271 signature validation returns false for the
      *         supplied listing signature.
-     * @dev    Throws when the buyer is an EOA and ECDSA recover operation on the OfferApproval EIP-712 signature 
-     *         does not return the buyer's address, meaning the buyer did not approve the purchase with the provided 
+     * @dev    Throws when the buyer is an EOA and ECDSA recover operation on the OfferApproval EIP-712 signature
+     *         does not return the buyer's address, meaning the buyer did not approve the purchase with the provided
      *         purchase details.
      * @dev    Throws when the buyer is a smart contract and EIP-1271 signature validation returns false for the
      *         supplied offer signature.
@@ -1009,9 +1075,9 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @dev    <h4>Postconditions:</h4>
      * @dev    For each item:
      *
-     * @dev    1. The listing nonce for the specified marketplace and seller has been marked as invalidated so that it 
+     * @dev    1. The listing nonce for the specified marketplace and seller has been marked as invalidated so that it
      *            cannot be replayed/used again.
-     * @dev    2. The offer nonce for the specified marketplace and buyer has been marked as invalidated so that it 
+     * @dev    2. The offer nonce for the specified marketplace and buyer has been marked as invalidated so that it
      *            cannot be replayed/used again.
      * @dev    3. Applicable royalties have been paid to the address designated with EIP-2981 (when implemented on the
      *            NFT contract).
@@ -1031,8 +1097,10 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
     ) external payable override {
         _requireNotPaused();
 
-        if (saleDetailsArray.length != signedListings.length || 
-            saleDetailsArray.length != signedOffers.length) {
+        if (
+            saleDetailsArray.length != signedListings.length ||
+            saleDetailsArray.length != signedOffers.length
+        ) {
             revert PaymentProcessor__InputArrayLengthMismatch();
         }
 
@@ -1047,13 +1115,13 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         SignatureECDSA memory signedOffer;
         uint256 msgValue;
 
-        for (uint256 i = 0; i < saleDetailsArray.length;) {
+        for (uint256 i = 0; i < saleDetailsArray.length; ) {
             saleDetails = saleDetailsArray[i];
             signedListing = signedListings[i];
             signedOffer = signedOffers[i];
             msgValue = 0;
 
-            if(saleDetails.paymentCoin == address(0)) {
+            if (saleDetails.paymentCoin == address(0)) {
                 msgValue = saleDetails.offerPrice;
 
                 if (runningBalanceNativeProceeds < msgValue) {
@@ -1064,11 +1132,23 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                     runningBalanceNativeProceeds -= msgValue;
                 }
 
-                if (!_executeMatchedOrderSale(msgValue, saleDetails, signedListing, signedOffer)) {
+                if (
+                    !_executeMatchedOrderSale(
+                        msgValue,
+                        saleDetails,
+                        signedListing,
+                        signedOffer
+                    )
+                ) {
                     revert PaymentProcessor__DispensingTokenWasUnsuccessful();
                 }
             } else {
-                _executeMatchedOrderSale(msgValue, saleDetails, signedListing, signedOffer);
+                _executeMatchedOrderSale(
+                    msgValue,
+                    saleDetails,
+                    signedListing,
+                    signedOffer
+                );
             }
 
             unchecked {
@@ -1143,25 +1223,25 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @dev    Throws when a private buyer is specified and the buyer does not match the private buyer.
      * @dev    Throws when a private buyer is specified and private listings are disabled by collection security policy.
      * @dev    Throws when a delegated purchaser is specified and the `msg.sender` is not the delegated purchaser.
-     * @dev    Throws when a delegated purchaser is specified and delegated purchases are disabled by collection 
+     * @dev    Throws when a delegated purchaser is specified and delegated purchases are disabled by collection
      *         security policy.
-     * @dev    Throws when the exchange whitelist is enforced by collection security policy and `msg.sender` is a 
+     * @dev    Throws when the exchange whitelist is enforced by collection security policy and `msg.sender` is a
      *         smart contract that is not on the whitelist.
-     * @dev    Throws when the exchange whitelist is enforced AND exchange whitelist EOA bypass is disabled by 
-     *         collection security policy and `msg.sender` is an EOA that is not whitelisted. 
+     * @dev    Throws when the exchange whitelist is enforced AND exchange whitelist EOA bypass is disabled by
+     *         collection security policy and `msg.sender` is an EOA that is not whitelisted.
      * @dev    Throws when the seller's nonce on the specified marketplace has already been used to execute a sale.
      * @dev    Throws when the seller's nonce on the specified marketplace has already been revoked/canceled.
      * @dev    Throws when the buyer's nonce on the specified marketplace has already been used to execute a sale.
      * @dev    Throws when the buyer's nonce on the specified marketplace has already been revoked/canceled.
      * @dev    Throws when the `masterNonce` in the signed listing is not equal to the seller's current `masterNonce.
      * @dev    Throws when the `masterNonce` in the signed offer is not equal to the buyer's current `masterNonce.
-     * @dev    Throws when the seller is an EOA and ECDSA recover operation on the SaleApproval EIP-712 signature 
-     *         does not return the seller's address, meaning the seller did not approve the sale with the provided 
+     * @dev    Throws when the seller is an EOA and ECDSA recover operation on the SaleApproval EIP-712 signature
+     *         does not return the seller's address, meaning the seller did not approve the sale with the provided
      *         sale details.
      * @dev    Throws when the seller is a smart contract and EIP-1271 signature validation returns false for the
      *         supplied listing signature.
-     * @dev    Throws when the buyer is an EOA and ECDSA recover operation on the OfferApproval EIP-712 signature 
-     *         does not return the buyer's address, meaning the buyer did not approve the purchase with the provided 
+     * @dev    Throws when the buyer is an EOA and ECDSA recover operation on the OfferApproval EIP-712 signature
+     *         does not return the buyer's address, meaning the buyer did not approve the purchase with the provided
      *         purchase details.
      * @dev    Throws when the buyer is a smart contract and EIP-1271 signature validation returns false for the
      *         supplied offer signature.
@@ -1185,9 +1265,9 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      *         seller to the buyer and method of payment is native currency. (Partial fills allowed for ERC-20 payments).
      *
      * @dev    <h4>Postconditions:</h4>
-     * @dev    1. The listing nonce for the specified marketplace and seller has been marked as invalidated so that it 
+     * @dev    1. The listing nonce for the specified marketplace and seller has been marked as invalidated so that it
      *            cannot be replayed/used again.
-     * @dev    2. The offer nonce for the specified marketplace and buyer has been marked as invalidated so that it 
+     * @dev    2. The offer nonce for the specified marketplace and buyer has been marked as invalidated so that it
      *            cannot be replayed/used again.
      * @dev    3. Applicable royalties have been paid to the address designated with EIP-2981 (when implemented on the
      *            NFT contract).
@@ -1199,33 +1279,39 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param signedListing See `SignatureECSA` struct.
      * @param signedOffer   See `SignatureECSA` struct.
      * @param bundleDetails See `MatchedOrderBundleExtended` struct.
-     * @param bundleItems   See `BundledItem` struct. 
+     * @param bundleItems   See `BundledItem` struct.
      */
     function buyBundledListing(
         SignatureECDSA memory signedListing,
         SignatureECDSA memory signedOffer,
         MatchedOrderBundleExtended memory bundleDetails,
-        BundledItem[] calldata bundleItems) external payable override {
+        BundledItem[] calldata bundleItems
+    ) external payable override {
         _requireNotPaused();
 
         if (bundleItems.length == 0) {
             revert PaymentProcessor__InputArrayLengthCannotBeZero();
         }
 
-        (uint256 securityPolicyId, SecurityPolicy storage securityPolicy) = 
-            _getTokenSecurityPolicy(bundleDetails.bundleBase.tokenAddress);
+        (
+            uint256 securityPolicyId,
+            SecurityPolicy storage securityPolicy
+        ) = _getTokenSecurityPolicy(bundleDetails.bundleBase.tokenAddress);
 
-        SignatureECDSA[] memory signedListingAsSingletonArray = new SignatureECDSA[](1);
+        SignatureECDSA[]
+            memory signedListingAsSingletonArray = new SignatureECDSA[](1);
         signedListingAsSingletonArray[0] = signedListing;
 
-        (Accumulator memory accumulator, MatchedOrder[] memory saleDetailsBatch) = 
-        _validateBundledItems(
-            false,
-            securityPolicy,
-            bundleDetails,
-            bundleItems,
-            signedListingAsSingletonArray
-        );
+        (
+            Accumulator memory accumulator,
+            MatchedOrder[] memory saleDetailsBatch
+        ) = _validateBundledItems(
+                false,
+                securityPolicy,
+                bundleDetails,
+                bundleItems,
+                signedListingAsSingletonArray
+            );
 
         _validateBundledOffer(
             securityPolicyId,
@@ -1238,35 +1324,45 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         bool[] memory unsuccessfulFills = _computeAndDistributeProceeds(
             ComputeAndDistributeProceedsArgs({
                 pushPaymentGasLimit: securityPolicy.pushPaymentGasLimit,
-                purchaser: bundleDetails.bundleBase.delegatedPurchaser == address(0) ? bundleDetails.bundleBase.buyer : bundleDetails.bundleBase.delegatedPurchaser,
+                purchaser: bundleDetails.bundleBase.delegatedPurchaser ==
+                    address(0)
+                    ? bundleDetails.bundleBase.buyer
+                    : bundleDetails.bundleBase.delegatedPurchaser,
                 paymentCoin: IERC20(bundleDetails.bundleBase.paymentCoin),
-                funcPayout: bundleDetails.bundleBase.paymentCoin == address(0) ? _payoutNativeCurrency : _payoutCoinCurrency,
-                funcDispenseToken: bundleDetails.bundleBase.protocol == TokenProtocols.ERC1155 ? _dispenseERC1155Token : _dispenseERC721Token
+                funcPayout: bundleDetails.bundleBase.paymentCoin == address(0)
+                    ? _payoutNativeCurrency
+                    : _payoutCoinCurrency,
+                funcDispenseToken: bundleDetails.bundleBase.protocol ==
+                    TokenProtocols.ERC1155
+                    ? _dispenseERC1155Token
+                    : _dispenseERC721Token
             }),
             saleDetailsBatch
         );
 
         if (bundleDetails.bundleBase.protocol == TokenProtocols.ERC1155) {
             emit BuyBundledListingERC1155(
-                    bundleDetails.bundleBase.marketplace,
-                    bundleDetails.bundleBase.tokenAddress,
-                    bundleDetails.bundleBase.paymentCoin,
-                    bundleDetails.bundleBase.buyer,
-                    bundleDetails.seller,
-                    unsuccessfulFills,
-                    accumulator.tokenIds,
-                    accumulator.amounts,
-                    accumulator.salePrices);
+                bundleDetails.bundleBase.marketplace,
+                bundleDetails.bundleBase.tokenAddress,
+                bundleDetails.bundleBase.paymentCoin,
+                bundleDetails.bundleBase.buyer,
+                bundleDetails.seller,
+                unsuccessfulFills,
+                accumulator.tokenIds,
+                accumulator.amounts,
+                accumulator.salePrices
+            );
         } else {
             emit BuyBundledListingERC721(
-                    bundleDetails.bundleBase.marketplace,
-                    bundleDetails.bundleBase.tokenAddress,
-                    bundleDetails.bundleBase.paymentCoin,
-                    bundleDetails.bundleBase.buyer,
-                    bundleDetails.seller,
-                    unsuccessfulFills,
-                    accumulator.tokenIds,
-                    accumulator.salePrices);
+                bundleDetails.bundleBase.marketplace,
+                bundleDetails.bundleBase.tokenAddress,
+                bundleDetails.bundleBase.paymentCoin,
+                bundleDetails.bundleBase.buyer,
+                bundleDetails.seller,
+                unsuccessfulFills,
+                accumulator.tokenIds,
+                accumulator.salePrices
+            );
         }
     }
 
@@ -1330,17 +1426,17 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @dev    Throws when a private buyer is specified and the buyer does not match the private buyer.
      * @dev    Throws when a private buyer is specified and private listings are disabled by collection security policy.
      * @dev    Throws when a delegated purchaser is specified and the `msg.sender` is not the delegated purchaser.
-     * @dev    Throws when a delegated purchaser is specified and delegated purchases are disabled by collection 
+     * @dev    Throws when a delegated purchaser is specified and delegated purchases are disabled by collection
      *         security policy.
-     * @dev    Throws when the exchange whitelist is enforced by collection security policy and `msg.sender` is a 
+     * @dev    Throws when the exchange whitelist is enforced by collection security policy and `msg.sender` is a
      *         smart contract that is not on the whitelist.
-     * @dev    Throws when the exchange whitelist is enforced AND exchange whitelist EOA bypass is disabled by 
-     *         collection security policy and `msg.sender` is an EOA that is not whitelisted. 
+     * @dev    Throws when the exchange whitelist is enforced AND exchange whitelist EOA bypass is disabled by
+     *         collection security policy and `msg.sender` is an EOA that is not whitelisted.
      * @dev    Throws when the buyer's nonce on the specified marketplace has already been used to execute a sale.
      * @dev    Throws when the buyer's nonce on the specified marketplace has already been revoked/canceled.
      * @dev    Throws when the `masterNonce` in the signed offer is not equal to the buyer's current `masterNonce.
-     * @dev    Throws when the buyer is an EOA and ECDSA recover operation on the OfferApproval EIP-712 signature 
-     *         does not return the buyer's address, meaning the buyer did not approve the purchase with the provided 
+     * @dev    Throws when the buyer is an EOA and ECDSA recover operation on the OfferApproval EIP-712 signature
+     *         does not return the buyer's address, meaning the buyer did not approve the purchase with the provided
      *         purchase details.
      * @dev    Throws when the buyer is a smart contract and EIP-1271 signature validation returns false for the
      *         supplied offer signature.
@@ -1360,8 +1456,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @dev    Throws when the `masterNonce` in the signed listing is not equal to the seller's current `masterNonce.
      * @dev    Throws when the seller is a smart contract and EIP-1271 signatures are disabled by collection
      *         security policy.
-     * @dev    Throws when the seller is an EOA and ECDSA recover operation on the SaleApproval EIP-712 signature 
-     *         does not return the seller's address, meaning the seller did not approve the sale with the provided 
+     * @dev    Throws when the seller is an EOA and ECDSA recover operation on the SaleApproval EIP-712 signature
+     *         does not return the seller's address, meaning the seller did not approve the sale with the provided
      *         sale details.
      * @dev    Throws when the seller is a smart contract and EIP-1271 signature validation returns false for the
      *         supplied listing signature.
@@ -1372,9 +1468,9 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      *         seller to the buyer and method of payment is native currency. (Partial fills allowed for ERC-20 payments).
      *
      * @dev    <h4>Postconditions:</h4>
-     * @dev    1. The listing nonce for the specified marketplace and seller has been marked as invalidated so that it 
+     * @dev    1. The listing nonce for the specified marketplace and seller has been marked as invalidated so that it
      *            cannot be replayed/used again.
-     * @dev    2. The offer nonce for the specified marketplace and buyer has been marked as invalidated so that it 
+     * @dev    2. The offer nonce for the specified marketplace and buyer has been marked as invalidated so that it
      *            cannot be replayed/used again.
      * @dev    3. Applicable royalties have been paid to the address designated with EIP-2981 (when implemented on the
      *            NFT contract).
@@ -1385,14 +1481,15 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      *
      * @param signedOffer    See `SignatureECSA` struct.
      * @param bundleDetails  See `MatchedOrderBundleBase` struct.
-     * @param bundleItems    See `BundledItem` struct. 
+     * @param bundleItems    See `BundledItem` struct.
      * @param signedListings See `SignatureECSA` struct.
      */
     function sweepCollection(
         SignatureECDSA memory signedOffer,
         MatchedOrderBundleBase memory bundleDetails,
         BundledItem[] calldata bundleItems,
-        SignatureECDSA[] calldata signedListings) external payable override {
+        SignatureECDSA[] calldata signedListings
+    ) external payable override {
         _requireNotPaused();
 
         if (bundleItems.length != signedListings.length) {
@@ -1403,22 +1500,26 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             revert PaymentProcessor__InputArrayLengthCannotBeZero();
         }
 
-        (uint256 securityPolicyId, SecurityPolicy storage securityPolicy) = 
-            _getTokenSecurityPolicy(bundleDetails.tokenAddress);
+        (
+            uint256 securityPolicyId,
+            SecurityPolicy storage securityPolicy
+        ) = _getTokenSecurityPolicy(bundleDetails.tokenAddress);
 
-        (Accumulator memory accumulator, MatchedOrder[] memory saleDetailsBatch) = 
-        _validateBundledItems(
-            true,
-            securityPolicy,
-            MatchedOrderBundleExtended({
-                bundleBase: bundleDetails,
-                seller: address(0),
-                listingNonce: 0,
-                listingExpiration: 0
-            }),
-            bundleItems,
-            signedListings
-        );
+        (
+            Accumulator memory accumulator,
+            MatchedOrder[] memory saleDetailsBatch
+        ) = _validateBundledItems(
+                true,
+                securityPolicy,
+                MatchedOrderBundleExtended({
+                    bundleBase: bundleDetails,
+                    seller: address(0),
+                    listingNonce: 0,
+                    listingExpiration: 0
+                }),
+                bundleItems,
+                signedListings
+            );
 
         _validateBundledOffer(
             securityPolicyId,
@@ -1431,35 +1532,44 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         bool[] memory unsuccessfulFills = _computeAndDistributeProceeds(
             ComputeAndDistributeProceedsArgs({
                 pushPaymentGasLimit: securityPolicy.pushPaymentGasLimit,
-                purchaser: bundleDetails.delegatedPurchaser == address(0) ? bundleDetails.buyer : bundleDetails.delegatedPurchaser,
+                purchaser: bundleDetails.delegatedPurchaser == address(0)
+                    ? bundleDetails.buyer
+                    : bundleDetails.delegatedPurchaser,
                 paymentCoin: IERC20(bundleDetails.paymentCoin),
-                funcPayout: bundleDetails.paymentCoin == address(0) ? _payoutNativeCurrency : _payoutCoinCurrency,
-                funcDispenseToken: bundleDetails.protocol == TokenProtocols.ERC1155 ? _dispenseERC1155Token : _dispenseERC721Token
+                funcPayout: bundleDetails.paymentCoin == address(0)
+                    ? _payoutNativeCurrency
+                    : _payoutCoinCurrency,
+                funcDispenseToken: bundleDetails.protocol ==
+                    TokenProtocols.ERC1155
+                    ? _dispenseERC1155Token
+                    : _dispenseERC721Token
             }),
             saleDetailsBatch
         );
 
         if (bundleDetails.protocol == TokenProtocols.ERC1155) {
             emit SweepCollectionERC1155(
-                    bundleDetails.marketplace,
-                    bundleDetails.tokenAddress,
-                    bundleDetails.paymentCoin,
-                    bundleDetails.buyer,
-                    unsuccessfulFills,
-                    accumulator.sellers,
-                    accumulator.tokenIds,
-                    accumulator.amounts,
-                    accumulator.salePrices);
+                bundleDetails.marketplace,
+                bundleDetails.tokenAddress,
+                bundleDetails.paymentCoin,
+                bundleDetails.buyer,
+                unsuccessfulFills,
+                accumulator.sellers,
+                accumulator.tokenIds,
+                accumulator.amounts,
+                accumulator.salePrices
+            );
         } else {
             emit SweepCollectionERC721(
-                    bundleDetails.marketplace,
-                    bundleDetails.tokenAddress,
-                    bundleDetails.paymentCoin,
-                    bundleDetails.buyer,
-                    unsuccessfulFills,
-                    accumulator.sellers,
-                    accumulator.tokenIds,
-                    accumulator.salePrices);
+                bundleDetails.marketplace,
+                bundleDetails.tokenAddress,
+                bundleDetails.paymentCoin,
+                bundleDetails.buyer,
+                unsuccessfulFills,
+                accumulator.sellers,
+                accumulator.tokenIds,
+                accumulator.salePrices
+            );
         }
     }
 
@@ -1472,11 +1582,13 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
 
     /**
      * @notice Returns the security policy details for the specified security policy id.
-     * 
+     *
      * @param  securityPolicyId The security policy id to lookup.
      * @return securityPolicy   The security policy details.
      */
-    function getSecurityPolicy(uint256 securityPolicyId) external view override returns (SecurityPolicy memory) {
+    function getSecurityPolicy(
+        uint256 securityPolicyId
+    ) external view override returns (SecurityPolicy memory) {
         return securityPolicies[securityPolicyId];
     }
 
@@ -1487,7 +1599,10 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  account          The address to check.
      * @return isWhitelisted    True if the address is whitelisted, false otherwise.
      */
-    function isWhitelisted(uint256 securityPolicyId, address account) external view override returns (bool) {
+    function isWhitelisted(
+        uint256 securityPolicyId,
+        address account
+    ) external view override returns (bool) {
         return exchangeWhitelist[securityPolicyId][account];
     }
 
@@ -1498,17 +1613,22 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  coin                    The coin address to check.
      * @return isPaymentMethodApproved True if the coin address is approved, false otherwise.
      */
-    function isPaymentMethodApproved(uint256 securityPolicyId, address coin) external view override returns (bool) {
+    function isPaymentMethodApproved(
+        uint256 securityPolicyId,
+        address coin
+    ) external view override returns (bool) {
         return paymentMethodWhitelist[securityPolicyId][coin];
     }
 
     /**
      * @notice Returns the current security policy id for the specified collection address.
-     * 
+     *
      * @param  collectionAddress The address of the collection to lookup.
      * @return securityPolicyId  The current security policy id for the specifed collection.
      */
-    function getTokenSecurityPolicyId(address collectionAddress) external view override returns (uint256) {
+    function getTokenSecurityPolicyId(
+        address collectionAddress
+    ) external view override returns (uint256) {
         return tokenSecurityPolicies[collectionAddress];
     }
 
@@ -1517,7 +1637,9 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  tokenAddress The smart contract address of the NFT collection.
      * @return True if the floor and ceiling price for the specified token contract has been set immutably, false otherwise.
      */
-    function isCollectionPricingImmutable(address tokenAddress) external view override returns (bool) {
+    function isCollectionPricingImmutable(
+        address tokenAddress
+    ) external view override returns (bool) {
         return collectionPricingBounds[tokenAddress].isImmutable;
     }
 
@@ -1527,7 +1649,10 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  tokenId      The token id.
      * @return True if the floor and ceiling price for the specified token contract and tokenId has been set immutably, false otherwise.
      */
-    function isTokenPricingImmutable(address tokenAddress, uint256 tokenId) external view override returns (bool) {
+    function isTokenPricingImmutable(
+        address tokenAddress,
+        uint256 tokenId
+    ) external view override returns (bool) {
         return tokenPricingBounds[tokenAddress][tokenId].isImmutable;
     }
 
@@ -1538,8 +1663,14 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  tokenId      The token id.
      * @return The floor price.
      */
-    function getFloorPrice(address tokenAddress, uint256 tokenId) external view override returns (uint256) {
-        (uint256 floorPrice,) = _getFloorAndCeilingPrices(tokenAddress, tokenId);
+    function getFloorPrice(
+        address tokenAddress,
+        uint256 tokenId
+    ) external view override returns (uint256) {
+        (uint256 floorPrice, ) = _getFloorAndCeilingPrices(
+            tokenAddress,
+            tokenId
+        );
         return floorPrice;
     }
 
@@ -1550,8 +1681,14 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
      * @param  tokenId      The token id.
      * @return The ceiling price.
      */
-    function getCeilingPrice(address tokenAddress, uint256 tokenId) external view override returns (uint256) {
-        (, uint256 ceilingPrice) = _getFloorAndCeilingPrices(tokenAddress, tokenId);
+    function getCeilingPrice(
+        address tokenAddress,
+        uint256 tokenId
+    ) external view override returns (uint256) {
+        (, uint256 ceilingPrice) = _getFloorAndCeilingPrices(
+            tokenAddress,
+            tokenId
+        );
         return ceilingPrice;
     }
 
@@ -1564,33 +1701,38 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
     function supportsInterface(
         bytes4 interfaceId
     ) public view virtual override(ERC165, IERC165) returns (bool) {
-        return interfaceId == type(IPaymentProcessor).interfaceId || super.supportsInterface(interfaceId);
+        return
+            interfaceId == type(IPaymentProcessor).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     function _payoutNativeCurrency(
-        address payee, 
-        address /*payer*/, 
-        IERC20 /*paymentCoin*/, 
-        uint256 proceeds, 
-        uint256 gasLimit_) internal {
+        address payee,
+        address /*payer*/,
+        IERC20 /*paymentCoin*/,
+        uint256 proceeds,
+        uint256 gasLimit_
+    ) internal {
         _pushProceeds(payee, proceeds, gasLimit_);
     }
 
     function _payoutCoinCurrency(
-        address payee, 
-        address payer, 
-        IERC20 paymentCoin, 
-        uint256 proceeds, 
-        uint256 /*gasLimit_*/) internal {
+        address payee,
+        address payer,
+        IERC20 paymentCoin,
+        uint256 proceeds,
+        uint256 /*gasLimit_*/
+    ) internal {
         SafeERC20.safeTransferFrom(paymentCoin, payer, payee, proceeds);
     }
 
     function _dispenseERC721Token(
-        address from, 
-        address to, 
-        address tokenAddress, 
-        uint256 tokenId, 
-        uint256 /*amount*/) internal returns (bool) {
+        address from,
+        address to,
+        address tokenAddress,
+        uint256 tokenId,
+        uint256 /*amount*/
+    ) internal returns (bool) {
         try IERC721(tokenAddress).transferFrom(from, to, tokenId) {
             return true;
         } catch {
@@ -1599,48 +1741,64 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
     }
 
     function _dispenseERC1155Token(
-        address from, 
-        address to, 
-        address tokenAddress, 
-        uint256 tokenId, 
-        uint256 amount) internal returns (bool) {
-        try IERC1155(tokenAddress).safeTransferFrom(from, to, tokenId, amount, "") {
+        address from,
+        address to,
+        address tokenAddress,
+        uint256 tokenId,
+        uint256 amount
+    ) internal returns (bool) {
+        try
+            IERC1155(tokenAddress).safeTransferFrom(
+                from,
+                to,
+                tokenId,
+                amount,
+                ""
+            )
+        {
             return true;
         } catch {
             return false;
         }
     }
 
-    function _requireCallerIsNFTOrContractOwnerOrAdmin(address tokenAddress) internal view {
+    function _requireCallerIsNFTOrContractOwnerOrAdmin(
+        address tokenAddress
+    ) internal view {
         bool callerHasPermissions = false;
-        
+
         callerHasPermissions = _msgSender() == tokenAddress;
-        if(!callerHasPermissions) {
+        if (!callerHasPermissions) {
             try IOwnable(tokenAddress).owner() returns (address contractOwner) {
                 callerHasPermissions = _msgSender() == contractOwner;
             } catch {}
 
-            if(!callerHasPermissions) {
-                try IAccessControl(tokenAddress).hasRole(DEFAULT_ACCESS_CONTROL_ADMIN_ROLE, _msgSender()) 
-                    returns (bool callerIsContractAdmin) {
+            if (!callerHasPermissions) {
+                try
+                    IAccessControl(tokenAddress).hasRole(
+                        DEFAULT_ACCESS_CONTROL_ADMIN_ROLE,
+                        _msgSender()
+                    )
+                returns (bool callerIsContractAdmin) {
                     callerHasPermissions = callerIsContractAdmin;
                 } catch {}
             }
         }
 
-        if(!callerHasPermissions) {
+        if (!callerHasPermissions) {
             revert PaymentProcessor__CallerMustHaveElevatedPermissionsForSpecifiedNFT();
         }
     }
 
     function _verifyPaymentCoinIsApproved(
-        uint256 securityPolicyId, 
+        uint256 securityPolicyId,
         bool enforcePaymentMethodWhitelist,
         bool enforcePricingConstraints,
-        address tokenAddress, 
-        address coin) internal view virtual {
+        address tokenAddress,
+        address coin
+    ) internal view virtual {
         if (enforcePricingConstraints) {
-            if(collectionPaymentCoins[tokenAddress] != coin) {
+            if (collectionPaymentCoins[tokenAddress] != coin) {
                 revert PaymentProcessor__PaymentCoinIsNotAnApprovedPaymentMethod();
             }
         } else if (enforcePaymentMethodWhitelist) {
@@ -1660,8 +1818,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         bool disableEIP1271Signatures,
         bool disableExchangeWhitelistEOABypass,
         uint32 pushPaymentGasLimit,
-        string calldata registryName) private {
-
+        string calldata registryName
+    ) private {
         securityPolicies[securityPolicyId] = SecurityPolicy({
             enforceExchangeWhitelist: enforceExchangeWhitelist,
             enforcePaymentMethodWhitelist: enforcePaymentMethodWhitelist,
@@ -1675,7 +1833,7 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         });
 
         emit CreatedOrUpdatedSecurityPolicy(
-            securityPolicyId, 
+            securityPolicyId,
             enforceExchangeWhitelist,
             enforcePaymentMethodWhitelist,
             enforcePricingConstraints,
@@ -1684,13 +1842,19 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             disableEIP1271Signatures,
             disableExchangeWhitelistEOABypass,
             pushPaymentGasLimit,
-            registryName);
+            registryName
+        );
     }
 
-    function _transferSecurityPolicyOwnership(uint256 securityPolicyId, address newOwner) private {
+    function _transferSecurityPolicyOwnership(
+        uint256 securityPolicyId,
+        address newOwner
+    ) private {
         _requireCallerOwnsSecurityPolicy(securityPolicyId);
 
-        SecurityPolicy storage securityPolicy = securityPolicies[securityPolicyId];
+        SecurityPolicy storage securityPolicy = securityPolicies[
+            securityPolicyId
+        ];
 
         address oldOwner = securityPolicy.policyOwner;
         securityPolicy.policyOwner = newOwner;
@@ -1703,15 +1867,22 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         SignatureECDSA memory signedListing,
         SignatureECDSA memory signedOffer
     ) private returns (bool tokenDispensedSuccessfully) {
-        uint256 securityPolicyId = tokenSecurityPolicies[saleDetails.tokenAddress];
-        SecurityPolicy memory securityPolicy = securityPolicies[securityPolicyId];
+        uint256 securityPolicyId = tokenSecurityPolicies[
+            saleDetails.tokenAddress
+        ];
+        SecurityPolicy memory securityPolicy = securityPolicies[
+            securityPolicyId
+        ];
 
         if (saleDetails.paymentCoin == address(0)) {
             if (saleDetails.offerPrice != msgValue) {
                 revert PaymentProcessor__OfferPriceMustEqualSalePrice();
             }
 
-            if (saleDetails.sellerAcceptedOffer || saleDetails.seller == tx.origin) {
+            if (
+                saleDetails.sellerAcceptedOffer ||
+                saleDetails.seller == tx.origin
+            ) {
                 revert PaymentProcessor__CollectionLevelOrItemLevelOffersCanOnlyBeMadeUsingERC20PaymentMethods();
             }
         } else {
@@ -1720,13 +1891,14 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             }
 
             _verifyPaymentCoinIsApproved(
-                securityPolicyId, 
-                securityPolicy.enforcePaymentMethodWhitelist, 
+                securityPolicyId,
+                securityPolicy.enforcePaymentMethodWhitelist,
                 securityPolicy.enforcePricingConstraints,
-                saleDetails.tokenAddress, 
-                saleDetails.paymentCoin);
+                saleDetails.tokenAddress,
+                saleDetails.paymentCoin
+            );
         }
-        
+
         if (saleDetails.protocol == TokenProtocols.ERC1155) {
             if (saleDetails.amount == 0) {
                 revert PaymentProcessor__AmountForERC1155SalesGreaterThanZero();
@@ -1749,7 +1921,11 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             revert PaymentProcessor__SalePriceBelowSellerApprovedMinimum();
         }
 
-        if (saleDetails.marketplaceFeeNumerator + saleDetails.maxRoyaltyFeeNumerator > FEE_DENOMINATOR) {
+        if (
+            saleDetails.marketplaceFeeNumerator +
+                saleDetails.maxRoyaltyFeeNumerator >
+            FEE_DENOMINATOR
+        ) {
             revert PaymentProcessor__MarketplaceAndRoyaltyFeesWillExceedSalePrice();
         }
 
@@ -1757,7 +1933,7 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             if (saleDetails.buyer != saleDetails.privateBuyer) {
                 revert PaymentProcessor__BuyerMustBeDesignatedPrivateBuyer();
             }
-    
+
             if (securityPolicy.disablePrivateListings) {
                 revert PaymentProcessor__TokenSecurityPolicyDoesNotAllowPrivateListings();
             }
@@ -1768,12 +1944,12 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                 revert PaymentProcessor__CallerIsNotTheDelegatedPurchaser();
             }
 
-            if(securityPolicy.disableDelegatedPurchases) {
+            if (securityPolicy.disableDelegatedPurchases) {
                 revert PaymentProcessor__TokenSecurityPolicyDoesNotAllowDelegatedPurchases();
             }
         }
 
-        if(securityPolicy.disableEIP1271Signatures) {
+        if (securityPolicy.disableEIP1271Signatures) {
             if (saleDetails.seller.code.length > 0) {
                 revert PaymentProcessor__EIP1271SignaturesAreDisabled();
             }
@@ -1797,16 +1973,20 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
 
         if (securityPolicy.enforcePricingConstraints) {
             if (saleDetails.paymentCoin == address(0)) {
-                if(collectionPaymentCoins[saleDetails.tokenAddress] != address(0)) {
+                if (
+                    collectionPaymentCoins[saleDetails.tokenAddress] !=
+                    address(0)
+                ) {
                     revert PaymentProcessor__NativeCurrencyIsNotAnApprovedPaymentMethod();
                 }
             }
 
             _verifySalePriceInRange(
-                saleDetails.tokenAddress, 
-                saleDetails.tokenId, 
-                saleDetails.amount, 
-                saleDetails.offerPrice);
+                saleDetails.tokenAddress,
+                saleDetails.tokenId,
+                saleDetails.amount,
+                saleDetails.offerPrice
+            );
         }
 
         _verifySignedItemListing(saleDetails, signedListing);
@@ -1823,10 +2003,17 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         bool[] memory unsuccessfulFills = _computeAndDistributeProceeds(
             ComputeAndDistributeProceedsArgs({
                 pushPaymentGasLimit: securityPolicy.pushPaymentGasLimit,
-                purchaser: saleDetails.delegatedPurchaser == address(0) ? saleDetails.buyer : saleDetails.delegatedPurchaser,
+                purchaser: saleDetails.delegatedPurchaser == address(0)
+                    ? saleDetails.buyer
+                    : saleDetails.delegatedPurchaser,
                 paymentCoin: IERC20(saleDetails.paymentCoin),
-                funcPayout: saleDetails.paymentCoin == address(0) ? _payoutNativeCurrency : _payoutCoinCurrency,
-                funcDispenseToken: saleDetails.protocol == TokenProtocols.ERC1155 ? _dispenseERC1155Token : _dispenseERC721Token
+                funcPayout: saleDetails.paymentCoin == address(0)
+                    ? _payoutNativeCurrency
+                    : _payoutCoinCurrency,
+                funcDispenseToken: saleDetails.protocol ==
+                    TokenProtocols.ERC1155
+                    ? _dispenseERC1155Token
+                    : _dispenseERC721Token
             }),
             saleDetailsSingletonBatch
         );
@@ -1842,7 +2029,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                 saleDetails.seller,
                 saleDetails.tokenId,
                 saleDetails.amount,
-                saleDetails.offerPrice);
+                saleDetails.offerPrice
+            );
         }
     }
 
@@ -1851,25 +2039,30 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         SecurityPolicy storage securityPolicy,
         MatchedOrderBundleBase memory bundleDetails,
         Accumulator memory accumulator,
-        SignatureECDSA memory signedOffer) private {
+        SignatureECDSA memory signedOffer
+    ) private {
         if (bundleDetails.paymentCoin != address(0)) {
             if (msg.value > 0) {
                 revert PaymentProcessor__CannotIncludeNativeFundsWhenPaymentMethodIsAnERC20Coin();
             }
-    
+
             _verifyPaymentCoinIsApproved(
-                securityPolicyId, 
-                securityPolicy.enforcePaymentMethodWhitelist, 
+                securityPolicyId,
+                securityPolicy.enforcePaymentMethodWhitelist,
                 securityPolicy.enforcePricingConstraints,
-                bundleDetails.tokenAddress, 
-                bundleDetails.paymentCoin);
+                bundleDetails.tokenAddress,
+                bundleDetails.paymentCoin
+            );
         } else {
             if (msg.value != bundleDetails.offerPrice) {
                 revert PaymentProcessor__OfferPriceMustEqualSalePrice();
             }
 
             if (securityPolicy.enforcePricingConstraints) {
-                if(collectionPaymentCoins[bundleDetails.tokenAddress] != address(0)) {
+                if (
+                    collectionPaymentCoins[bundleDetails.tokenAddress] !=
+                    address(0)
+                ) {
                     revert PaymentProcessor__NativeCurrencyIsNotAnApprovedPaymentMethod();
                 }
             }
@@ -1884,12 +2077,12 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                 revert PaymentProcessor__CallerIsNotTheDelegatedPurchaser();
             }
 
-            if(securityPolicy.disableDelegatedPurchases) {
+            if (securityPolicy.disableDelegatedPurchases) {
                 revert PaymentProcessor__TokenSecurityPolicyDoesNotAllowDelegatedPurchases();
             }
         }
 
-        if(securityPolicy.disableEIP1271Signatures) {
+        if (securityPolicy.disableEIP1271Signatures) {
             if (bundleDetails.buyer.code.length > 0) {
                 revert PaymentProcessor__EIP1271SignaturesAreDisabled();
             }
@@ -1925,9 +2118,14 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         SecurityPolicy storage securityPolicy,
         MatchedOrderBundleExtended memory bundleDetails,
         BundledItem[] memory bundledOfferItems,
-        SignatureECDSA[] memory signedListings) 
-        private returns (Accumulator memory accumulator, MatchedOrder[] memory saleDetailsBatch) {
-
+        SignatureECDSA[] memory signedListings
+    )
+        private
+        returns (
+            Accumulator memory accumulator,
+            MatchedOrder[] memory saleDetailsBatch
+        )
+    {
         saleDetailsBatch = new MatchedOrder[](bundledOfferItems.length);
         accumulator = Accumulator({
             tokenIds: new uint256[](bundledOfferItems.length),
@@ -1938,8 +2136,7 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             sumListingPrices: 0
         });
 
-        for (uint256 i = 0; i < bundledOfferItems.length;) {
-
+        for (uint256 i = 0; i < bundledOfferItems.length; ) {
             address seller = bundleDetails.seller;
             uint256 listingNonce = bundleDetails.listingNonce;
             uint256 listingExpiration = bundleDetails.listingExpiration;
@@ -1949,37 +2146,40 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                 listingNonce = bundledOfferItems[i].listingNonce;
                 listingExpiration = bundledOfferItems[i].listingExpiration;
             }
-            
-            MatchedOrder memory saleDetails = 
-                MatchedOrder({
-                    sellerAcceptedOffer: false,
-                    collectionLevelOffer: false,
-                    protocol: bundleDetails.bundleBase.protocol,
-                    paymentCoin: bundleDetails.bundleBase.paymentCoin,
-                    tokenAddress: bundleDetails.bundleBase.tokenAddress,
-                    seller: seller,
-                    privateBuyer: bundleDetails.bundleBase.privateBuyer,
-                    buyer: bundleDetails.bundleBase.buyer,
-                    delegatedPurchaser: bundleDetails.bundleBase.delegatedPurchaser,
-                    marketplace: bundleDetails.bundleBase.marketplace,
-                    marketplaceFeeNumerator: bundleDetails.bundleBase.marketplaceFeeNumerator,
-                    maxRoyaltyFeeNumerator: bundledOfferItems[i].maxRoyaltyFeeNumerator,
-                    listingNonce: listingNonce,
-                    offerNonce: bundleDetails.bundleBase.offerNonce,
-                    listingMinPrice: bundledOfferItems[i].itemPrice,
-                    offerPrice: bundledOfferItems[i].itemPrice,
-                    listingExpiration: listingExpiration,
-                    offerExpiration: bundleDetails.bundleBase.offerExpiration,
-                    tokenId: bundledOfferItems[i].tokenId,
-                    amount: bundledOfferItems[i].amount
-                });
+
+            MatchedOrder memory saleDetails = MatchedOrder({
+                sellerAcceptedOffer: false,
+                collectionLevelOffer: false,
+                protocol: bundleDetails.bundleBase.protocol,
+                paymentCoin: bundleDetails.bundleBase.paymentCoin,
+                tokenAddress: bundleDetails.bundleBase.tokenAddress,
+                seller: seller,
+                privateBuyer: bundleDetails.bundleBase.privateBuyer,
+                buyer: bundleDetails.bundleBase.buyer,
+                delegatedPurchaser: bundleDetails.bundleBase.delegatedPurchaser,
+                marketplace: bundleDetails.bundleBase.marketplace,
+                marketplaceFeeNumerator: bundleDetails
+                    .bundleBase
+                    .marketplaceFeeNumerator,
+                maxRoyaltyFeeNumerator: bundledOfferItems[i]
+                    .maxRoyaltyFeeNumerator,
+                listingNonce: listingNonce,
+                offerNonce: bundleDetails.bundleBase.offerNonce,
+                listingMinPrice: bundledOfferItems[i].itemPrice,
+                offerPrice: bundledOfferItems[i].itemPrice,
+                listingExpiration: listingExpiration,
+                offerExpiration: bundleDetails.bundleBase.offerExpiration,
+                tokenId: bundledOfferItems[i].tokenId,
+                amount: bundledOfferItems[i].amount
+            });
 
             saleDetailsBatch[i] = saleDetails;
 
             accumulator.tokenIds[i] = saleDetails.tokenId;
             accumulator.amounts[i] = saleDetails.amount;
             accumulator.salePrices[i] = saleDetails.listingMinPrice;
-            accumulator.maxRoyaltyFeeNumerators[i] = saleDetails.maxRoyaltyFeeNumerator;
+            accumulator.maxRoyaltyFeeNumerators[i] = saleDetails
+                .maxRoyaltyFeeNumerator;
             accumulator.sellers[i] = saleDetails.seller;
             accumulator.sumListingPrices += saleDetails.listingMinPrice;
 
@@ -1993,18 +2193,23 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                 }
             }
 
-            if (saleDetails.marketplaceFeeNumerator + saleDetails.maxRoyaltyFeeNumerator > FEE_DENOMINATOR) {
+            if (
+                saleDetails.marketplaceFeeNumerator +
+                    saleDetails.maxRoyaltyFeeNumerator >
+                FEE_DENOMINATOR
+            ) {
                 revert PaymentProcessor__MarketplaceAndRoyaltyFeesWillExceedSalePrice();
             }
 
             if (securityPolicy.enforcePricingConstraints) {
                 _verifySalePriceInRange(
-                    saleDetails.tokenAddress, 
-                    saleDetails.tokenId, 
-                    saleDetails.amount, 
-                    saleDetails.offerPrice);
+                    saleDetails.tokenAddress,
+                    saleDetails.tokenId,
+                    saleDetails.amount,
+                    saleDetails.offerPrice
+                );
             }
-   
+
             if (individualListings) {
                 if (block.timestamp > saleDetails.listingExpiration) {
                     revert PaymentProcessor__SaleHasExpired();
@@ -2014,18 +2219,18 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                     if (saleDetails.buyer != saleDetails.privateBuyer) {
                         revert PaymentProcessor__BuyerMustBeDesignatedPrivateBuyer();
                     }
-    
+
                     if (securityPolicy.disablePrivateListings) {
                         revert PaymentProcessor__TokenSecurityPolicyDoesNotAllowPrivateListings();
                     }
                 }
-        
-                if(securityPolicy.disableEIP1271Signatures) {
+
+                if (securityPolicy.disableEIP1271Signatures) {
                     if (saleDetails.seller.code.length > 0) {
                         revert PaymentProcessor__EIP1271SignaturesAreDisabled();
                     }
                 }
-    
+
                 _verifySignedItemListing(saleDetails, signedListings[i]);
             }
 
@@ -2034,22 +2239,25 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             }
         }
 
-        if(!individualListings) {
+        if (!individualListings) {
             if (block.timestamp > bundleDetails.listingExpiration) {
                 revert PaymentProcessor__SaleHasExpired();
             }
 
             if (bundleDetails.bundleBase.privateBuyer != address(0)) {
-                if (bundleDetails.bundleBase.buyer != bundleDetails.bundleBase.privateBuyer) {
+                if (
+                    bundleDetails.bundleBase.buyer !=
+                    bundleDetails.bundleBase.privateBuyer
+                ) {
                     revert PaymentProcessor__BuyerMustBeDesignatedPrivateBuyer();
                 }
-    
+
                 if (securityPolicy.disablePrivateListings) {
                     revert PaymentProcessor__TokenSecurityPolicyDoesNotAllowPrivateListings();
                 }
             }
 
-            if(securityPolicy.disableEIP1271Signatures) {
+            if (securityPolicy.disableEIP1271Signatures) {
                 if (bundleDetails.seller.code.length > 0) {
                     revert PaymentProcessor__EIP1271SignaturesAreDisabled();
                 }
@@ -2057,21 +2265,31 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
 
             _verifySignedBundleListing(
                 AccumulatorHashes({
-                    tokenIdsKeccakHash: keccak256(abi.encodePacked(accumulator.tokenIds)),
-                    amountsKeccakHash: keccak256(abi.encodePacked(accumulator.amounts)),
-                    maxRoyaltyFeeNumeratorsKeccakHash: keccak256(abi.encodePacked(accumulator.maxRoyaltyFeeNumerators)),
-                    itemPricesKeccakHash: keccak256(abi.encodePacked(accumulator.salePrices))
+                    tokenIdsKeccakHash: keccak256(
+                        abi.encodePacked(accumulator.tokenIds)
+                    ),
+                    amountsKeccakHash: keccak256(
+                        abi.encodePacked(accumulator.amounts)
+                    ),
+                    maxRoyaltyFeeNumeratorsKeccakHash: keccak256(
+                        abi.encodePacked(accumulator.maxRoyaltyFeeNumerators)
+                    ),
+                    itemPricesKeccakHash: keccak256(
+                        abi.encodePacked(accumulator.salePrices)
+                    )
                 }),
-                bundleDetails, 
-                signedListings[0]);
+                bundleDetails,
+                signedListings[0]
+            );
         }
     }
 
     function _verifySignedItemOffer(
         MatchedOrder memory saleDetails,
-        SignatureECDSA memory signedOffer) private {
-        bytes32 digest = 
-            _hashTypedDataV4(keccak256(
+        SignatureECDSA memory signedOffer
+    ) private {
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
                 bytes.concat(
                     abi.encode(
                         OFFER_APPROVAL_HASH,
@@ -2089,8 +2307,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                         saleDetails.offerExpiration,
                         saleDetails.offerNonce,
                         _checkAndInvalidateNonce(
-                            saleDetails.marketplace, 
-                            saleDetails.buyer, 
+                            saleDetails.marketplace,
+                            saleDetails.buyer,
                             saleDetails.offerNonce,
                             false
                         ),
@@ -2100,18 +2318,22 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             )
         );
 
-        if(saleDetails.buyer.code.length > 0) {
+        if (saleDetails.buyer.code.length > 0) {
             _verifyEIP1271Signature(saleDetails.buyer, digest, signedOffer);
-        } else if (saleDetails.buyer != ECDSA.recover(digest, signedOffer.v, signedOffer.r, signedOffer.s)) {
+        } else if (
+            saleDetails.buyer !=
+            ECDSA.recover(digest, signedOffer.v, signedOffer.r, signedOffer.s)
+        ) {
             revert PaymentProcessor__BuyerDidNotAuthorizePurchase();
         }
     }
 
     function _verifySignedCollectionOffer(
         MatchedOrder memory saleDetails,
-        SignatureECDSA memory signedOffer) private {
-        bytes32 digest = 
-            _hashTypedDataV4(keccak256(
+        SignatureECDSA memory signedOffer
+    ) private {
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
                 bytes.concat(
                     abi.encode(
                         COLLECTION_OFFER_APPROVAL_HASH,
@@ -2129,8 +2351,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                         saleDetails.offerExpiration,
                         saleDetails.offerNonce,
                         _checkAndInvalidateNonce(
-                            saleDetails.marketplace, 
-                            saleDetails.buyer, 
+                            saleDetails.marketplace,
+                            saleDetails.buyer,
                             saleDetails.offerNonce,
                             false
                         ),
@@ -2140,9 +2362,12 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             )
         );
 
-        if(saleDetails.buyer.code.length > 0) {
+        if (saleDetails.buyer.code.length > 0) {
             _verifyEIP1271Signature(saleDetails.buyer, digest, signedOffer);
-        } else if (saleDetails.buyer != ECDSA.recover(digest, signedOffer.v, signedOffer.r, signedOffer.s)) {
+        } else if (
+            saleDetails.buyer !=
+            ECDSA.recover(digest, signedOffer.v, signedOffer.r, signedOffer.s)
+        ) {
             revert PaymentProcessor__BuyerDidNotAuthorizePurchase();
         }
     }
@@ -2152,10 +2377,10 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         bytes32 amountsKeccakHash,
         bytes32 salePricesKeccakHash,
         MatchedOrderBundleBase memory bundledOfferDetails,
-        SignatureECDSA memory signedOffer) private {
-
-        bytes32 digest = 
-            _hashTypedDataV4(keccak256(
+        SignatureECDSA memory signedOffer
+    ) private {
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
                 bytes.concat(
                     abi.encode(
                         BUNDLED_OFFER_APPROVAL_HASH,
@@ -2171,8 +2396,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                         bundledOfferDetails.offerExpiration,
                         bundledOfferDetails.offerNonce,
                         _checkAndInvalidateNonce(
-                            bundledOfferDetails.marketplace, 
-                            bundledOfferDetails.buyer, 
+                            bundledOfferDetails.marketplace,
+                            bundledOfferDetails.buyer,
                             bundledOfferDetails.offerNonce,
                             false
                         ),
@@ -2185,9 +2410,16 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             )
         );
 
-        if(bundledOfferDetails.buyer.code.length > 0) {
-            _verifyEIP1271Signature(bundledOfferDetails.buyer, digest, signedOffer);
-        } else if (bundledOfferDetails.buyer != ECDSA.recover(digest, signedOffer.v, signedOffer.r, signedOffer.s)) {
+        if (bundledOfferDetails.buyer.code.length > 0) {
+            _verifyEIP1271Signature(
+                bundledOfferDetails.buyer,
+                digest,
+                signedOffer
+            );
+        } else if (
+            bundledOfferDetails.buyer !=
+            ECDSA.recover(digest, signedOffer.v, signedOffer.r, signedOffer.s)
+        ) {
             revert PaymentProcessor__BuyerDidNotAuthorizePurchase();
         }
     }
@@ -2195,10 +2427,10 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
     function _verifySignedBundleListing(
         AccumulatorHashes memory accumulatorHashes,
         MatchedOrderBundleExtended memory bundleDetails,
-        SignatureECDSA memory signedListing) private {
-
-        bytes32 digest = 
-            _hashTypedDataV4(keccak256(
+        SignatureECDSA memory signedListing
+    ) private {
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
                 bytes.concat(
                     abi.encode(
                         BUNDLED_SALE_APPROVAL_HASH,
@@ -2213,8 +2445,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                         bundleDetails.listingExpiration,
                         bundleDetails.listingNonce,
                         _checkAndInvalidateNonce(
-                            bundleDetails.bundleBase.marketplace, 
-                            bundleDetails.seller, 
+                            bundleDetails.bundleBase.marketplace,
+                            bundleDetails.seller,
                             bundleDetails.listingNonce,
                             false
                         ),
@@ -2228,18 +2460,31 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             )
         );
 
-        if(bundleDetails.seller.code.length > 0) {
-            _verifyEIP1271Signature(bundleDetails.seller, digest, signedListing);
-        } else if (bundleDetails.seller != ECDSA.recover(digest, signedListing.v, signedListing.r, signedListing.s)) {
+        if (bundleDetails.seller.code.length > 0) {
+            _verifyEIP1271Signature(
+                bundleDetails.seller,
+                digest,
+                signedListing
+            );
+        } else if (
+            bundleDetails.seller !=
+            ECDSA.recover(
+                digest,
+                signedListing.v,
+                signedListing.r,
+                signedListing.s
+            )
+        ) {
             revert PaymentProcessor__SellerDidNotAuthorizeSale();
         }
     }
 
     function _verifySignedItemListing(
         MatchedOrder memory saleDetails,
-        SignatureECDSA memory signedListing) private {
-        bytes32 digest = 
-            _hashTypedDataV4(keccak256(
+        SignatureECDSA memory signedListing
+    ) private {
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
                 bytes.concat(
                     abi.encode(
                         SALE_APPROVAL_HASH,
@@ -2259,8 +2504,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                         saleDetails.listingExpiration,
                         saleDetails.listingNonce,
                         _checkAndInvalidateNonce(
-                            saleDetails.marketplace, 
-                            saleDetails.seller, 
+                            saleDetails.marketplace,
+                            saleDetails.seller,
                             saleDetails.listingNonce,
                             false
                         ),
@@ -2270,21 +2515,31 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             )
         );
 
-        if(saleDetails.seller.code.length > 0) {
+        if (saleDetails.seller.code.length > 0) {
             _verifyEIP1271Signature(saleDetails.seller, digest, signedListing);
-        } else if (saleDetails.seller != ECDSA.recover(digest, signedListing.v, signedListing.r, signedListing.s)) {
+        } else if (
+            saleDetails.seller !=
+            ECDSA.recover(
+                digest,
+                signedListing.v,
+                signedListing.r,
+                signedListing.s
+            )
+        ) {
             revert PaymentProcessor__SellerDidNotAuthorizeSale();
         }
     }
 
     function _checkAndInvalidateNonce(
-        address marketplace, 
-        address account, 
-        uint256 nonce, 
-        bool wasCancellation) private returns (uint256) {
-
-        mapping(uint256 => uint256) storage ptrInvalidatedSignatureBitmap =
-            invalidatedSignatures[keccak256(abi.encodePacked(marketplace, account))];
+        address marketplace,
+        address account,
+        uint256 nonce,
+        bool wasCancellation
+    ) private returns (uint256) {
+        mapping(uint256 => uint256)
+            storage ptrInvalidatedSignatureBitmap = invalidatedSignatures[
+                keccak256(abi.encodePacked(marketplace, account))
+            ];
 
         unchecked {
             uint256 slot = nonce / 256;
@@ -2295,7 +2550,7 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
                 revert PaymentProcessor__SignatureAlreadyUsedOrRevoked();
             }
 
-            ptrInvalidatedSignatureBitmap[slot] = (slotValue | ONE << offset);
+            ptrInvalidatedSignatureBitmap[slot] = (slotValue | (ONE << offset));
         }
 
         emit NonceInvalidated(nonce, account, marketplace, wasCancellation);
@@ -2305,8 +2560,8 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
 
     function _computeAndDistributeProceeds(
         ComputeAndDistributeProceedsArgs memory args,
-        MatchedOrder[] memory saleDetailsBatch) private returns (bool[] memory unsuccessfulFills) {
-
+        MatchedOrder[] memory saleDetailsBatch
+    ) private returns (bool[] memory unsuccessfulFills) {
         unsuccessfulFills = new bool[](saleDetailsBatch.length);
 
         PayoutsAccumulator memory accumulator = PayoutsAccumulator({
@@ -2318,16 +2573,16 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             accumulatedRoyaltyProceeds: 0
         });
 
-        for (uint256 i = 0; i < saleDetailsBatch.length;) {
+        for (uint256 i = 0; i < saleDetailsBatch.length; ) {
             MatchedOrder memory saleDetails = saleDetailsBatch[i];
 
-            bool successfullyDispensedToken = 
-                args.funcDispenseToken(
-                    saleDetails.seller, 
-                    saleDetails.buyer, 
-                    saleDetails.tokenAddress, 
-                    saleDetails.tokenId, 
-                    saleDetails.amount);
+            bool successfullyDispensedToken = args.funcDispenseToken(
+                saleDetails.seller,
+                saleDetails.buyer,
+                saleDetails.tokenAddress,
+                saleDetails.tokenId,
+                saleDetails.amount
+            );
 
             if (!successfullyDispensedToken) {
                 if (address(args.paymentCoin) == address(0)) {
@@ -2336,47 +2591,71 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
 
                 unsuccessfulFills[i] = true;
             } else {
-                SplitProceeds memory proceeds =
-                    _computePaymentSplits(
-                        saleDetails.offerPrice,
-                        saleDetails.tokenAddress,
-                        saleDetails.tokenId,
-                        saleDetails.marketplace,
-                        saleDetails.marketplaceFeeNumerator,
-                        saleDetails.maxRoyaltyFeeNumerator
-                    );
-    
-                if (proceeds.royaltyRecipient != accumulator.lastRoyaltyRecipient) {
-                    if(accumulator.accumulatedRoyaltyProceeds > 0) {
-                        args.funcPayout(accumulator.lastRoyaltyRecipient, args.purchaser, args.paymentCoin, accumulator.accumulatedRoyaltyProceeds, args.pushPaymentGasLimit);
+                SplitProceeds memory proceeds = _computePaymentSplits(
+                    saleDetails.offerPrice,
+                    saleDetails.tokenAddress,
+                    saleDetails.tokenId,
+                    saleDetails.marketplace,
+                    saleDetails.marketplaceFeeNumerator,
+                    saleDetails.maxRoyaltyFeeNumerator
+                );
+
+                if (
+                    proceeds.royaltyRecipient !=
+                    accumulator.lastRoyaltyRecipient
+                ) {
+                    if (accumulator.accumulatedRoyaltyProceeds > 0) {
+                        args.funcPayout(
+                            accumulator.lastRoyaltyRecipient,
+                            args.purchaser,
+                            args.paymentCoin,
+                            accumulator.accumulatedRoyaltyProceeds,
+                            args.pushPaymentGasLimit
+                        );
                     }
-    
-                    accumulator.lastRoyaltyRecipient = proceeds.royaltyRecipient;
+
+                    accumulator.lastRoyaltyRecipient = proceeds
+                        .royaltyRecipient;
                     accumulator.accumulatedRoyaltyProceeds = 0;
                 }
-    
+
                 if (saleDetails.marketplace != accumulator.lastMarketplace) {
-                    if(accumulator.accumulatedMarketplaceProceeds > 0) {
-                        args.funcPayout(accumulator.lastMarketplace, args.purchaser, args.paymentCoin, accumulator.accumulatedMarketplaceProceeds, args.pushPaymentGasLimit);
+                    if (accumulator.accumulatedMarketplaceProceeds > 0) {
+                        args.funcPayout(
+                            accumulator.lastMarketplace,
+                            args.purchaser,
+                            args.paymentCoin,
+                            accumulator.accumulatedMarketplaceProceeds,
+                            args.pushPaymentGasLimit
+                        );
                     }
-    
+
                     accumulator.lastMarketplace = saleDetails.marketplace;
                     accumulator.accumulatedMarketplaceProceeds = 0;
                 }
-    
+
                 if (saleDetails.seller != accumulator.lastSeller) {
-                    if(accumulator.accumulatedSellerProceeds > 0) {
-                        args.funcPayout(accumulator.lastSeller, args.purchaser, args.paymentCoin, accumulator.accumulatedSellerProceeds, args.pushPaymentGasLimit);
+                    if (accumulator.accumulatedSellerProceeds > 0) {
+                        args.funcPayout(
+                            accumulator.lastSeller,
+                            args.purchaser,
+                            args.paymentCoin,
+                            accumulator.accumulatedSellerProceeds,
+                            args.pushPaymentGasLimit
+                        );
                     }
-    
+
                     accumulator.lastSeller = saleDetails.seller;
                     accumulator.accumulatedSellerProceeds = 0;
                 }
 
                 unchecked {
-                    accumulator.accumulatedRoyaltyProceeds += proceeds.royaltyProceeds;
-                    accumulator.accumulatedMarketplaceProceeds += proceeds.marketplaceProceeds;
-                    accumulator.accumulatedSellerProceeds += proceeds.sellerProceeds;
+                    accumulator.accumulatedRoyaltyProceeds += proceeds
+                        .royaltyProceeds;
+                    accumulator.accumulatedMarketplaceProceeds += proceeds
+                        .marketplaceProceeds;
+                    accumulator.accumulatedSellerProceeds += proceeds
+                        .sellerProceeds;
                 }
             }
 
@@ -2385,22 +2664,44 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             }
         }
 
-        if(accumulator.accumulatedRoyaltyProceeds > 0) {
-            args.funcPayout(accumulator.lastRoyaltyRecipient, args.purchaser, args.paymentCoin, accumulator.accumulatedRoyaltyProceeds, args.pushPaymentGasLimit);
+        if (accumulator.accumulatedRoyaltyProceeds > 0) {
+            args.funcPayout(
+                accumulator.lastRoyaltyRecipient,
+                args.purchaser,
+                args.paymentCoin,
+                accumulator.accumulatedRoyaltyProceeds,
+                args.pushPaymentGasLimit
+            );
         }
 
-        if(accumulator.accumulatedMarketplaceProceeds > 0) {
-            args.funcPayout(accumulator.lastMarketplace, args.purchaser, args.paymentCoin, accumulator.accumulatedMarketplaceProceeds, args.pushPaymentGasLimit);
+        if (accumulator.accumulatedMarketplaceProceeds > 0) {
+            args.funcPayout(
+                accumulator.lastMarketplace,
+                args.purchaser,
+                args.paymentCoin,
+                accumulator.accumulatedMarketplaceProceeds,
+                args.pushPaymentGasLimit
+            );
         }
 
-        if(accumulator.accumulatedSellerProceeds > 0) {
-            args.funcPayout(accumulator.lastSeller, args.purchaser, args.paymentCoin, accumulator.accumulatedSellerProceeds, args.pushPaymentGasLimit);
+        if (accumulator.accumulatedSellerProceeds > 0) {
+            args.funcPayout(
+                accumulator.lastSeller,
+                args.purchaser,
+                args.paymentCoin,
+                accumulator.accumulatedSellerProceeds,
+                args.pushPaymentGasLimit
+            );
         }
 
         return unsuccessfulFills;
     }
 
-    function _pushProceeds(address to, uint256 proceeds, uint256 pushPaymentGasLimit_) private {
+    function _pushProceeds(
+        address to,
+        uint256 proceeds,
+        uint256 pushPaymentGasLimit_
+    ) private {
         bool success;
 
         assembly {
@@ -2419,20 +2720,23 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         uint256 tokenId,
         address marketplaceFeeRecipient,
         uint256 marketplaceFeeNumerator,
-        uint256 maxRoyaltyFeeNumerator) private view returns (SplitProceeds memory proceeds) {
-
+        uint256 maxRoyaltyFeeNumerator
+    ) private view returns (SplitProceeds memory proceeds) {
         proceeds.sellerProceeds = salePrice;
 
-        try IERC2981(tokenAddress).royaltyInfo(
-            tokenId, 
-            salePrice) 
-            returns (address royaltyReceiver, uint256 royaltyAmount) {
+        try IERC2981(tokenAddress).royaltyInfo(tokenId, salePrice) returns (
+            address royaltyReceiver,
+            uint256 royaltyAmount
+        ) {
             if (royaltyReceiver == address(0)) {
                 royaltyAmount = 0;
             }
 
             if (royaltyAmount > 0) {
-                if (royaltyAmount > (salePrice * maxRoyaltyFeeNumerator) / FEE_DENOMINATOR) {
+                if (
+                    royaltyAmount >
+                    (salePrice * maxRoyaltyFeeNumerator) / FEE_DENOMINATOR
+                ) {
                     revert PaymentProcessor__OnchainRoyaltiesExceedMaximumApprovedRoyaltyFee();
                 }
 
@@ -2445,8 +2749,9 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
             }
         } catch (bytes memory) {}
 
-        proceeds.marketplaceProceeds =
-            marketplaceFeeRecipient != address(0) ? (salePrice * marketplaceFeeNumerator) / FEE_DENOMINATOR : 0;
+        proceeds.marketplaceProceeds = marketplaceFeeRecipient != address(0)
+            ? (salePrice * marketplaceFeeNumerator) / FEE_DENOMINATOR
+            : 0;
         if (proceeds.marketplaceProceeds > 0) {
             unchecked {
                 proceeds.sellerProceeds -= proceeds.marketplaceProceeds;
@@ -2454,29 +2759,46 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
         }
     }
 
-    function _getTokenSecurityPolicy(address tokenAddress) private view returns (uint256, SecurityPolicy storage) {
+    function _getTokenSecurityPolicy(
+        address tokenAddress
+    ) private view returns (uint256, SecurityPolicy storage) {
         uint256 securityPolicyId = tokenSecurityPolicies[tokenAddress];
-        SecurityPolicy storage securityPolicy = securityPolicies[securityPolicyId];
+        SecurityPolicy storage securityPolicy = securityPolicies[
+            securityPolicyId
+        ];
         return (securityPolicyId, securityPolicy);
     }
 
-    function _requireCallerOwnsSecurityPolicy(uint256 securityPolicyId) private view {
-        if(_msgSender() != securityPolicies[securityPolicyId].policyOwner) {
+    function _requireCallerOwnsSecurityPolicy(
+        uint256 securityPolicyId
+    ) private view {
+        if (_msgSender() != securityPolicies[securityPolicyId].policyOwner) {
             revert PaymentProcessor__CallerDoesNotOwnSecurityPolicy();
         }
     }
 
     function _getFloorAndCeilingPrices(
-        address tokenAddress, 
-        uint256 tokenId) private view returns (uint256, uint256) {
-
-        PricingBounds memory tokenLevelPricingBounds = tokenPricingBounds[tokenAddress][tokenId];
+        address tokenAddress,
+        uint256 tokenId
+    ) private view returns (uint256, uint256) {
+        PricingBounds memory tokenLevelPricingBounds = tokenPricingBounds[
+            tokenAddress
+        ][tokenId];
         if (tokenLevelPricingBounds.isEnabled) {
-            return (tokenLevelPricingBounds.floorPrice, tokenLevelPricingBounds.ceilingPrice);
+            return (
+                tokenLevelPricingBounds.floorPrice,
+                tokenLevelPricingBounds.ceilingPrice
+            );
         } else {
-            PricingBounds memory collectionLevelPricingBounds = collectionPricingBounds[tokenAddress];
+            PricingBounds
+                memory collectionLevelPricingBounds = collectionPricingBounds[
+                    tokenAddress
+                ];
             if (collectionLevelPricingBounds.isEnabled) {
-                return (collectionLevelPricingBounds.floorPrice, collectionLevelPricingBounds.ceilingPrice);
+                return (
+                    collectionLevelPricingBounds.floorPrice,
+                    collectionLevelPricingBounds.ceilingPrice
+                );
             }
         }
 
@@ -2484,35 +2806,46 @@ contract PaymentProcessor is ERC165, EIP712, Ownable, Pausable, IPaymentProcesso
     }
 
     function _verifySalePriceInRange(
-        address tokenAddress, 
-        uint256 tokenId, 
-        uint256 amount, 
-        uint256 salePrice) private view {
-
+        address tokenAddress,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 salePrice
+    ) private view {
         uint256 salePricePerUnit = salePrice / amount;
 
-        (uint256 floorPrice, uint256 ceilingPrice) = _getFloorAndCeilingPrices(tokenAddress, tokenId);
+        (uint256 floorPrice, uint256 ceilingPrice) = _getFloorAndCeilingPrices(
+            tokenAddress,
+            tokenId
+        );
 
-        if(salePricePerUnit < floorPrice) {
+        if (salePricePerUnit < floorPrice) {
             revert PaymentProcessor__SalePriceBelowMinimumFloor();
         }
 
-        if(salePricePerUnit > ceilingPrice) {
+        if (salePricePerUnit > ceilingPrice) {
             revert PaymentProcessor__SalePriceAboveMaximumCeiling();
         }
     }
 
     function _verifyEIP1271Signature(
-        address signer, 
-        bytes32 hash, 
-        SignatureECDSA memory signatureComponents) private view {
+        address signer,
+        bytes32 hash,
+        SignatureECDSA memory signatureComponents
+    ) private view {
         bool isValidSignatureNow;
-        
-        try IERC1271(signer).isValidSignature(
-            hash, 
-            abi.encodePacked(signatureComponents.r, signatureComponents.s, signatureComponents.v)) 
-            returns (bytes4 magicValue) {
-            isValidSignatureNow = magicValue == IERC1271.isValidSignature.selector;
+
+        try
+            IERC1271(signer).isValidSignature(
+                hash,
+                abi.encodePacked(
+                    signatureComponents.r,
+                    signatureComponents.s,
+                    signatureComponents.v
+                )
+            )
+        returns (bytes4 magicValue) {
+            isValidSignatureNow =
+                magicValue == IERC1271.isValidSignature.selector;
         } catch {}
 
         if (!isValidSignatureNow) {
