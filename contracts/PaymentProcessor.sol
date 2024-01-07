@@ -230,6 +230,11 @@ contract PaymentProcessor is
     mapping(address => mapping(uint256 => PricingBounds))
         private tokenPricingBounds;
 
+    /**
+     * @dev Mapping of collection royalty backfill when a collection is not using ERC2981.
+     */
+    mapping(address => RoyaltyInfo) public royaltyBackfill;
+
     constructor(
         address defaultContractOwner_,
         uint32 defaultPushPaymentGasLimit_,
@@ -457,6 +462,39 @@ contract PaymentProcessor is
         uint256 securityPolicyId
     ) external override {
         _transferSecurityPolicyOwnership(securityPolicyId, address(0));
+    }
+
+    /**
+     * @notice Allows the smart contract, the contract owner, or the contract admin of any NFT collection to
+     *         set the roaylty backfill for their collection.
+     *
+     * @dev    Throws when the specified tokenAddress is address(0).
+     * @dev    Throws when the caller is not the contract, the owner or the administrator of the specified collection.
+     *
+     * @dev    <h4>Postconditions:</h4>
+     * @dev    1. The `royaltyBackfill` mapping has be updated to reflect the royaltyAmount.
+     * @dev    2. An `UpdatedCollectionRoyaltyBackfill` event has been emitted.
+     *
+     * @param  tokenAddress     The smart contract address of the NFT collection.
+     * @param  receiver         The smart contract address of the NFT collection.
+     * @param  royaltyBps       The royalty amount to use for the collection, same as ERC2981 royaltyAmount.
+     */
+    function setCollectionRoyaltyBackfill(
+        address tokenAddress,
+        address receiver,
+        uint16 royaltyBps
+    ) external override {
+        _requireCallerIsNFTOrContractOwnerOrAdmin(tokenAddress);
+
+        royaltyBackfill[tokenAddress] = RoyaltyInfo(
+            receiver,
+            royaltyBps > 10000 ? 10000 : royaltyBps
+        );
+        emit UpdatedCollectionRoyaltyBackfill(
+            tokenAddress,
+            receiver,
+            royaltyBps
+        );
     }
 
     /**
@@ -2597,7 +2635,9 @@ contract PaymentProcessor is
                     saleDetails.tokenId,
                     saleDetails.marketplace,
                     saleDetails.marketplaceFeeNumerator,
-                    saleDetails.maxRoyaltyFeeNumerator
+                    saleDetails.maxRoyaltyFeeNumerator,
+                    address(0), // TODO: change the saleDetails
+                    0 // TODO: change the saleDetails
                 );
 
                 if (
@@ -2720,7 +2760,9 @@ contract PaymentProcessor is
         uint256 tokenId,
         address marketplaceFeeRecipient,
         uint256 marketplaceFeeNumerator,
-        uint256 maxRoyaltyFeeNumerator
+        uint256 maxRoyaltyFeeNumerator,
+        address offchainRoyaltyRecipient,
+        uint16 offchainRoyaltyBps
     ) private view returns (SplitProceeds memory proceeds) {
         proceeds.sellerProceeds = salePrice;
 
@@ -2747,7 +2789,39 @@ contract PaymentProcessor is
                     proceeds.sellerProceeds -= royaltyAmount;
                 }
             }
-        } catch (bytes memory) {}
+        } catch (bytes memory) {
+            // fallback to use royalty backfill if no ERC2981 support
+            RoyaltyInfo memory royaltyInfo = royaltyBackfill[tokenAddress];
+            if (royaltyInfo.royaltyBps > 0) {
+                if (royaltyInfo.royaltyBps > maxRoyaltyFeeNumerator) {
+                    revert PaymentProcessor__OnchainRoyaltiesExceedMaximumApprovedRoyaltyFee();
+                }
+
+                uint256 royaltyAmount = (salePrice * royaltyInfo.royaltyBps) /
+                    10000;
+
+                proceeds.royaltyRecipient = royaltyInfo.receiver;
+                proceeds.royaltyProceeds = royaltyAmount;
+
+                unchecked {
+                    proceeds.sellerProceeds -= royaltyAmount;
+                }
+            } else if (offchainRoyaltyBps > 0) {
+                if (offchainRoyaltyBps > maxRoyaltyFeeNumerator) {
+                    revert PaymentProcessor__OnchainRoyaltiesExceedMaximumApprovedRoyaltyFee();
+                }
+
+                uint256 royaltyAmount = (salePrice * offchainRoyaltyBps) /
+                    10000;
+
+                proceeds.royaltyRecipient = offchainRoyaltyRecipient;
+                proceeds.royaltyProceeds = royaltyAmount;
+
+                unchecked {
+                    proceeds.sellerProceeds -= royaltyAmount;
+                }
+            }
+        }
 
         proceeds.marketplaceProceeds = marketplaceFeeRecipient != address(0)
             ? (salePrice * marketplaceFeeNumerator) / FEE_DENOMINATOR

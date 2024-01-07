@@ -106,6 +106,9 @@ interface IPaymentProcessor is IERC165 {
         uint256[] amounts,
         uint256[] salePrices);
 
+    /// @notice Emitted whenever the royaltyAmount of royaltyBackfill changes for a collection.
+    event UpdatedCollectionRoyaltyBackfill(address indexed tokenAddress, address indexed receiver, uint16 indexed roayltyAmount);
+
     /// @notice Emitted whenever the designated security policy id changes for a collection.
     event UpdatedCollectionSecurityPolicy(address indexed tokenAddress, uint256 indexed securityPolicyId);
 
@@ -153,6 +156,7 @@ interface IPaymentProcessor is IERC165 {
     function setCollectionSecurityPolicy(address tokenAddress, uint256 securityPolicyId) external;
     function setCollectionPaymentCoin(address tokenAddress, address coin) external;
     function setCollectionPricingBounds(address tokenAddress, PricingBounds calldata pricingBounds) external;
+    function setCollectionRoyaltyBackfill(address tokenAddress, address receiver, uint16 royaltyBps) external;
 
     function setTokenPricingBounds(
         address tokenAddress, 

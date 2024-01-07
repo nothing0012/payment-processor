@@ -198,6 +198,17 @@ struct SecurityPolicy {
 /**
  * @dev This struct is used to define pricing constraints for a collection or individual token.
  *
+ * @dev **receiver**: same as ERC2981 royalty recipient.  This is the account that receives the royalty payment.
+ * @dev **royaltyBps**: This is the percentage (in bps) of the sale price that is paid. E.g. 250 bps = 2.5%.
+ */
+struct RoyaltyInfo {
+    address receiver;
+    uint16 royaltyBps;
+}
+
+/**
+ * @dev This struct is used to define pricing constraints for a collection or individual token.
+ *
  * @dev **isEnabled**: When true, this indicates that pricing constraints are set for the collection or token.
  * @dev **isImmutable**: When true, this indicates that pricing constraints are immutable and cannot be changed.
  * @dev **floorPrice**: The minimum price for a token or collection.  This is only enforced when 
@@ -266,3 +277,4 @@ struct ComputeAndDistributeProceedsArgs {
     function(address,address,IERC20,uint256,uint256) funcPayout;
     function(address,address,address,uint256,uint256) returns (bool) funcDispenseToken;
 }
+
